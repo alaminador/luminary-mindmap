@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react'
-import { Plus, Equals, PencilSimple, LinkSimple, Globe, X } from '@phosphor-icons/react'
+import { Plus, Equals, PencilSimple, LinkSimple, Globe, X, CaretUp, CaretDown, Stack } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
-import { RADIUS_CARD, RADIUS_PILL, SHADOW_FLOATING, SHADOW_LG, BLUR_STRONG, FOCUS_RING_COLOR, FOCUS_RING_WIDTH, SPACE_1, SPACE_3, SPACE_6 } from '../lib/tokens'
+import type { Layer } from '../lib/mindmap'
+import { depthBand } from '../lib/mindmap'
+import { RADIUS_CARD, RADIUS_PILL, RADIUS_BASE, SHADOW_FLOATING, SHADOW_LG, BLUR_STRONG, FOCUS_RING_COLOR, FOCUS_RING_WIDTH, SPACE_1, SPACE_3, SPACE_5, SPACE_6, DEPTH_STEP, LABEL_SMALL, LABEL_MEDIUM } from '../lib/tokens'
 
 // 8 curated emojis for mind-mapping
 const EMOJIS = ['💡', '🎯', '🔥', '✅', '⚠️', '🚀', '💬', '🔗']
@@ -15,6 +17,8 @@ interface Props {
   currentColorIndex?: number
   currentEmoji?: string
   currentUrl?: string
+  currentZ?: number
+  layers?: Layer[]
   theme: AppTheme
   onAddChild: () => void
   onAddSibling: () => void
@@ -24,21 +28,23 @@ interface Props {
   onColorChange: (colorIndex: number | undefined) => void
   onEmojiChange: (emoji: string | undefined) => void
   onUrlChange: (url: string | undefined) => void
+  onNudgeDepth: (delta: number) => void
+  onSetLayer: (layerId: string | undefined) => void
 }
 
 export const NodeToolbar = React.memo(function NodeToolbar({
-  x, y, isRoot, linkingMode, currentColorIndex, currentEmoji, currentUrl, theme: t,
+  x, y, isRoot, linkingMode, currentColorIndex, currentEmoji, currentUrl, currentZ, layers, theme: t,
   onAddChild, onAddSibling, onEditTitle, onDrawLink, onDelete,
-  onColorChange, onEmojiChange, onUrlChange,
+  onColorChange, onEmojiChange, onUrlChange, onNudgeDepth, onSetLayer,
 }: Props) {
   // Resolve current color from theme palette using the stored index
   const currentColor = currentColorIndex !== undefined ? t.palette[currentColorIndex] : undefined
-  const [panel, setPanel] = useState<'none' | 'color' | 'emoji' | 'url'>('none')
+  const [panel, setPanel] = useState<'none' | 'color' | 'emoji' | 'url' | 'depth'>('none')
   const [urlDraft, setUrlDraft] = useState(currentUrl ?? '')
   const urlInputRef = useRef<HTMLInputElement>(null)
   const isDark = t.mode === 'dark'
 
-  const togglePanel = (p: 'color' | 'emoji' | 'url') => {
+  const togglePanel = (p: 'color' | 'emoji' | 'url' | 'depth') => {
     if (p === 'url') setUrlDraft(currentUrl ?? '')
     setPanel(prev => (prev === p ? 'none' : p))
   }
@@ -149,12 +155,28 @@ export const NodeToolbar = React.memo(function NodeToolbar({
           <LinkSimple size={14} weight="regular" />
         </NBtn>
 
+        {/* Depth / layer button */}
+        <NBtn onClick={() => togglePanel('depth')} title="Depth  ([ / ])" color={t.textPrimary} t={t} active={panel === 'depth'}>
+          <Stack size={14} weight="regular" />
+        </NBtn>
+
         {!isRoot && (
           <NBtn onClick={onDelete} title="Delete (Del)" color={t.textPrimary} t={t}>
             <X size={14} weight="bold" />
           </NBtn>
         )}
       </div>
+
+      {/* ── depth / layer panel ── */}
+      {panel === 'depth' && (
+        <DepthPanel
+          theme={t}
+          currentZ={currentZ ?? 0}
+          layers={layers ?? []}
+          onNudge={onNudgeDepth}
+          onSetLayer={onSetLayer}
+        />
+      )}
 
       {/* ── color panel ── */}
       {panel === 'color' && (
@@ -444,3 +466,97 @@ const NBtn: React.FC<{
     {children}
   </button>
 )
+
+// ── Depth panel ──────────────────────────────────────────────────────────────
+const DepthPanel: React.FC<{
+  theme: AppTheme
+  currentZ: number
+  layers: Layer[]
+  onNudge: (delta: number) => void
+  onSetLayer: (layerId: string | undefined) => void
+}> = ({ theme: t, currentZ, layers, onNudge, onSetLayer }) => {
+  const band = depthBand(currentZ)
+  return (
+    <div style={{
+      background: t.panelBg,
+      backdropFilter: BLUR_STRONG,
+      WebkitBackdropFilter: BLUR_STRONG,
+      border: `1px solid ${t.border}`,
+      borderRadius: RADIUS_CARD,
+      padding: `${SPACE_6}px ${SPACE_6}px ${SPACE_5}px`,
+      boxShadow: SHADOW_FLOATING,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: SPACE_6,
+      minWidth: 180,
+      fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
+      marginTop: SPACE_5,
+    }}>
+      <span style={{
+        fontSize: LABEL_SMALL.size, fontWeight: LABEL_SMALL.weight, letterSpacing: LABEL_SMALL.letterSpacing,
+        color: t.textMuted, textTransform: 'uppercase', alignSelf: 'flex-start',
+      }}>
+        Depth
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: SPACE_3 }}>
+        <button
+          onClick={() => onNudge(-DEPTH_STEP)}
+          aria-label="Push back"
+          style={{
+            width: 28, height: 28, borderRadius: RADIUS_BASE, border: `1px solid ${t.border}`,
+            background: 'transparent', cursor: 'pointer', color: t.textMuted,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+          }}
+        >
+          <CaretDown size={14} weight="bold" />
+        </button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <span style={{ fontSize: LABEL_MEDIUM.size, fontWeight: 600, color: t.textPrimary }}>
+            {band}
+          </span>
+        </div>
+        <button
+          onClick={() => onNudge(DEPTH_STEP)}
+          aria-label="Bring forward"
+          style={{
+            width: 28, height: 28, borderRadius: RADIUS_BASE, border: `1px solid ${t.border}`,
+            background: 'transparent', cursor: 'pointer', color: t.textMuted,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+          }}
+        >
+          <CaretUp size={14} weight="bold" />
+        </button>
+      </div>
+      {layers.length > 0 && (
+        <>
+          <div style={{ height: 1, background: t.border }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: LABEL_SMALL.size, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Layer
+            </span>
+            {layers.map(layer => (
+              <button
+                key={layer.id}
+                onClick={() => onSetLayer(layer.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: SPACE_5,
+                  padding: `${SPACE_3}px ${SPACE_5}px`,
+                  borderRadius: RADIUS_BASE, border: 'none',
+                  background: Math.abs(currentZ - layer.z) < 10 ? `${t.rootColor}18` : 'transparent',
+                  cursor: 'pointer',
+                  color: t.textPrimary, fontSize: LABEL_MEDIUM.size, fontWeight: Math.abs(currentZ - layer.z) < 10 ? 600 : 400,
+                  fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ fontSize: 12, width: 16 }}>{layer.name.charAt(0)}</span>
+                <span>{layer.name}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

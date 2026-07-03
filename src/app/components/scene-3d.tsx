@@ -1,16 +1,17 @@
 import React, {
   useRef, useState, useEffect, useCallback, useReducer, useMemo,
 } from 'react'
-import { CaretLeft, CaretRight, X, Check, ArrowUp } from '@phosphor-icons/react'
-import type { MindNode, NodeLink } from '../lib/mindmap'
-import { blankCanvas, addChild, addChildAt, addSibling, collectDescendants, computeDistanceMap, getVisibleNodeIds, nextId, autoLayout, exportMarkdown, parseOutlineToNodes } from '../lib/mindmap'
+import { X, Check, ArrowUp } from '@phosphor-icons/react'
+import type { MindNode, NodeLink, Layer } from '../lib/mindmap'
+import { blankCanvas, addChild, addChildAt, addSibling, collectDescendants, computeDistanceMap, getVisibleNodeIds, nextId, autoLayout, exportMarkdown, parseOutlineToNodes, DEFAULT_LAYERS } from '../lib/mindmap'
 import { playCreate, playDelete } from '../lib/sounds'
 import type { Camera } from '../lib/projection'
 import { project } from '../lib/projection'
 import { getTheme, LIGHT_THEMES, DARK_THEMES } from '../lib/themes'
 import { useBreakpoints } from '../lib/use-responsive'
-import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT } from '../lib/tokens'
+import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT, DEPTH_STEP } from '../lib/tokens'
 import { EdgesOverlay } from './edges-overlay'
+import { DepthGrid } from './depth-grid'
 import { MindNodeCard } from './mind-node'
 import { NodeToolbar } from './node-toolbar'
 import { Breadcrumb } from './breadcrumb'
@@ -20,6 +21,9 @@ import { SearchBar } from './search-bar'
 import { ThemePicker } from './theme-picker'
 import { Minimap } from './minimap'
 import { PagesPanel } from './pages-panel'
+import { LayerRail } from './layer-rail'
+import { PresentPanel } from './present-panel'
+import type { PresentStop } from './present-panel'
 import type { Page } from './pages-panel'
 
 const DEFAULT_CAMERA: Camera = {
@@ -76,12 +80,15 @@ function loadPages(): { pages: Page[]; activeId: string } {
   try {
     const raw = localStorage.getItem(PAGES_KEY)
     if (raw) {
-      const pages = JSON.parse(raw) as (Page & { nodes?: MindNode[]; links?: NodeLink[] })[]
+      const pages = JSON.parse(raw) as (Page & { nodes?: MindNode[]; links?: NodeLink[]; layers?: Layer[] })[]
       if (Array.isArray(pages) && pages.length > 0) {
         // Strip ghost nodes — empty-titled non-root nodes that were never given a name
+        // Add default layers to any page missing them
         pages.forEach(p => {
           if (Array.isArray(p.nodes))
             p.nodes = (p.nodes as MindNode[]).filter((n: MindNode) => n.id === 'root' || n.title.trim() !== '')
+          if (!Array.isArray(p.layers) || p.layers.length === 0)
+            p.layers = DEFAULT_LAYERS
         })
         const activeId = localStorage.getItem(ACTIVE_PAGE_KEY) ?? pages[0].id
         return { pages, activeId: pages.find(p => p.id === activeId) ? activeId : pages[0].id }
@@ -101,18 +108,18 @@ function loadPages(): { pages: Page[]; activeId: string } {
     if (rawLinks) links = JSON.parse(rawLinks) as NodeLink[]
   } catch (_) {}
 
-  const firstPage: Page & { nodes: MindNode[]; links: NodeLink[] } = {
-    id: makePageId(), name: 'Page 1', nodes, links,
+  const firstPage: Page & { nodes: MindNode[]; links: NodeLink[]; layers: Layer[] } = {
+    id: makePageId(), name: 'Page 1', nodes, links, layers: DEFAULT_LAYERS,
   }
   return { pages: [firstPage], activeId: firstPage.id }
 }
 
-function getPageData(pages: PageData[], id: string): { nodes: MindNode[]; links: NodeLink[] } {
+function getPageData(pages: PageData[], id: string): { nodes: MindNode[]; links: NodeLink[]; layers: Layer[] } {
   const p = pages.find(p => p.id === id)
-  return { nodes: p?.nodes ?? blankCanvas, links: p?.links ?? [] }
+  return { nodes: p?.nodes ?? blankCanvas, links: p?.links ?? [], layers: p?.layers ?? DEFAULT_LAYERS }
 }
 
-type PageData = Page & { nodes: MindNode[]; links: NodeLink[] }
+type PageData = Page & { nodes: MindNode[]; links: NodeLink[]; layers?: Layer[] }
 
 type EditingField = 'title' | 'description' | null
 
@@ -122,6 +129,7 @@ interface State {
   editingId: string | null
   editingField: EditingField
   links: NodeLink[]
+  layers: Layer[]
 }
 
 type Action =
@@ -140,6 +148,9 @@ type Action =
   | { type: 'UPDATE_EMOJI'; id: string; emoji: string | undefined }
   | { type: 'UPDATE_IMAGE'; id: string; image: string | undefined }
   | { type: 'UPDATE_URL'; id: string; url: string | undefined }
+  | { type: 'UPDATE_Z'; id: string; z: number }
+  | { type: 'UPDATE_LAYER'; id: string; layerId: string | undefined }
+  | { type: 'SET_LAYERS'; layers: Layer[] }
   | { type: 'TOGGLE_COLLAPSE'; id: string }
   | { type: 'MOVE_NODES'; deltas: { id: string; dx: number; dy: number; dz: number }[] }
   | { type: 'ADD_LINK'; link: NodeLink }
@@ -205,6 +216,21 @@ function reducer(state: State, action: Action): State {
       )
       return { ...state, nodes }
     }
+    case 'UPDATE_Z': {
+      const nodes = state.nodes.map(n =>
+        n.id === action.id ? { ...n, z: action.z } : n
+      )
+      return { ...state, nodes }
+    }
+    case 'UPDATE_LAYER': {
+      const nodes = state.nodes.map(n =>
+        n.id === action.id ? { ...n, layerId: action.layerId } : n
+      )
+      return { ...state, nodes }
+    }
+    case 'SET_LAYERS': {
+      return { ...state, layers: action.layers }
+    }
     case 'TOGGLE_COLLAPSE': {
       const nodes = state.nodes.map(n =>
         n.id === action.id ? { ...n, collapsed: !n.collapsed } : n
@@ -245,7 +271,7 @@ export const Scene3D: React.FC = () => {
     return { pages: pages as PageData[], activeId }
   })
 
-  const { nodes: initialNodes, links: initialLinks } = getPageData(pagesState.pages, pagesState.activeId)
+  const { nodes: initialNodes, links: initialLinks, layers: initialLayers } = getPageData(pagesState.pages, pagesState.activeId)
 
   const [state, dispatch] = useReducer(reducer, {
     nodes: initialNodes,
@@ -253,6 +279,7 @@ export const Scene3D: React.FC = () => {
     editingId: null,
     editingField: null,
     links: initialLinks,
+    layers: initialLayers,
   })
 
   const pagesStateRef = useRef(pagesState)
@@ -262,6 +289,11 @@ export const Scene3D: React.FC = () => {
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
     try { return localStorage.getItem('mindmap-panel-open') !== 'false' } catch { return true }
   })
+  // Orbit mode: widen mouse parallax so depth is visible on demand
+  const [orbitMode, setOrbitMode] = useState<boolean>(false)
+  const orbitModeRef = useRef(orbitMode); orbitModeRef.current = orbitMode
+  // prefers-reduced-motion: read once, cap animations
+  const reducedMotionRef = useRef(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const bp = useBreakpoints()
   // On mobile the panel is an overlay drawer — the canvas never shifts
   const panelW = panelOpen && bp.md ? PANEL_WIDTH : 0
@@ -308,8 +340,9 @@ export const Scene3D: React.FC = () => {
 
   // Presentation mode
   const [presentMode, setPresentMode] = useState(false)
-  const [presentOrder, setPresentOrder] = useState<string[]>([])
-  const [presentIndex, setPresentIndex] = useState(0)
+  // Cinematic presentation with stop-based path
+  const [cinematicStops, setCinematicStops] = useState<PresentStop[]>([])
+  const [presentPanelOpen, setPresentPanelOpen] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const cameraRef = useRef(camera)
@@ -320,10 +353,6 @@ export const Scene3D: React.FC = () => {
   viewportRef.current = viewport
   const presentModeRef = useRef(presentMode)
   presentModeRef.current = presentMode
-  const presentOrderRef = useRef(presentOrder)
-  presentOrderRef.current = presentOrder
-  const presentIndexRef = useRef(presentIndex)
-  presentIndexRef.current = presentIndex
   const searchActiveRef = useRef(searchActive)
   searchActiveRef.current = searchActive
 
@@ -426,12 +455,13 @@ export const Scene3D: React.FC = () => {
   const [savedTick, setSavedTick] = useState(false)
   const savedTickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstSaveRef = useRef(true)
+  const firstRunSwoopDoneRef = useRef(false)
 
-  // Auto-save current page nodes/links into the pages array, then persist
+  // Auto-save current page nodes/links/layers into the pages array, then persist
   useEffect(() => {
     setPagesState(prev => {
       const pages = prev.pages.map(p =>
-        p.id === prev.activeId ? { ...p, nodes: state.nodes, links: state.links } : p
+        p.id === prev.activeId ? { ...p, nodes: state.nodes, links: state.links, layers: state.layers } : p
       )
       try { localStorage.setItem(PAGES_KEY, JSON.stringify(pages)) } catch (_) {}
       return { ...prev, pages }
@@ -476,24 +506,72 @@ export const Scene3D: React.FC = () => {
     return () => obs.disconnect()
   }, [panelOpen])
 
-  // Parallax tilt
+  // First-run camera swoop — slow 2-second dolly that teaches "this space is deep"
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('luminary-swoop-done')) return
+    } catch (_) {}
+    if (firstRunSwoopDoneRef.current) return
+    if (reducedMotionRef.current) {
+      firstRunSwoopDoneRef.current = true
+      try { localStorage.setItem('luminary-swoop-done', '1') } catch (_) {}
+      return
+    }
+    firstRunSwoopDoneRef.current = true
+
+    const DURATION = 2000
+    const startTime = performance.now()
+    const startZ = cameraRef.current.panZ
+    const targetZ = -20  // slight dolly in
+    const startRotY = cameraRef.current.rotY
+    const targetRotY = 0.06  // slight orbit
+
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+
+    let rafId: number
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTime) / DURATION)
+      const e = easeOutCubic(t)
+      setCamera(c => ({
+        ...c,
+        panZ: startZ + (targetZ - startZ) * e,
+        rotY: startRotY + (targetRotY - startRotY) * e,
+      }))
+      if (t < 1) {
+        rafId = requestAnimationFrame(tick)
+      } else {
+        try { localStorage.setItem('luminary-swoop-done', '1') } catch (_) {}
+      }
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [])
+
+  // Parallax tilt — subtle by default, wider orbit (25-30°) in orbit mode
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     lastActivityRef.current = performance.now()
     if (dragState.current) return
     const nx = (e.clientX / viewport.width - 0.5) * 2
     const ny = (e.clientY / viewport.height - 0.5) * 2
-    setCamera(c => ({ ...c, rotY: nx * 0.18, rotX: -ny * 0.12 }))
+    const factor = orbitModeRef.current ? 1.8 : 1
+    setCamera(c => ({
+      ...c,
+      rotY: nx * 0.18 * factor,
+      rotX: -ny * 0.12 * factor,
+    }))
   }, [viewport])
 
   // Idle drift — gentle breathing parallax when the user is idle 10s+
+  // Respects prefers-reduced-motion: capped to near-zero amplitude
   useEffect(() => {
+    const driftAmp = reducedMotionRef.current ? 0.005 : 1
     let rafId: number
     const tick = () => {
       const idle = performance.now() - lastActivityRef.current
       if (idle > 10000 && !dragState.current && !focusAnimRef.current && !presentModeRef.current) {
         const t = performance.now() / 1000
-        const driftY = Math.sin(t * 0.32) * 0.045
-        const driftX = Math.cos(t * 0.21) * 0.030
+        const driftY = Math.sin(t * 0.32) * 0.045 * driftAmp
+        const driftX = Math.cos(t * 0.21) * 0.030 * driftAmp
         setCamera(c => ({ ...c, rotY: driftY, rotX: driftX }))
       }
       rafId = requestAnimationFrame(tick)
@@ -598,46 +676,134 @@ export const Scene3D: React.FC = () => {
   const fitToSelectionRef = useRef(fitToSelection)
   fitToSelectionRef.current = fitToSelection
 
-  // Presentation mode
+  // Presentation mode — opens the cinematic path editor
   const enterPresentation = useCallback(() => {
-    const nodes = stateRef.current.nodes
-    // BFS from root
-    const order: string[] = []
-    const queue = ['root']
-    while (queue.length) {
-      const id = queue.shift()!
-      if (nodes.find(n => n.id === id)) {
-        order.push(id)
-        nodes.filter(n => n.parentId === id).forEach(n => queue.push(n.id))
-      }
-    }
-    setPresentOrder(order)
-    setPresentIndex(0)
-    setPresentMode(true)
-    const firstNode = nodes.find(n => n.id === order[0])
-    if (firstNode) {
-      dispatch({ type: 'SELECT', ids: [firstNode.id] })
-      animateFocusRef.current(-firstNode.x * cameraRef.current.zoom, -firstNode.y * cameraRef.current.zoom, -firstNode.z + 80)
-    }
+    setPresentPanelOpen(true)
   }, [])
 
   const exitPresentation = useCallback(() => {
     setPresentMode(false)
-  }, [])
-
-  const presentNav = useCallback((dir: 1 | -1) => {
-    const order = presentOrderRef.current
-    const idx = presentIndexRef.current
-    const next = Math.max(0, Math.min(order.length - 1, idx + dir))
-    if (next === idx) return
-    setPresentIndex(next)
-    const nodeId = order[next]
-    const node = stateRef.current.nodes.find(n => n.id === nodeId)
-    if (node) {
-      dispatch({ type: 'SELECT', ids: [node.id] })
-      animateFocusRef.current(-node.x * cameraRef.current.zoom, -node.y * cameraRef.current.zoom, -node.z + 80)
+    setPresentPanelOpen(false)
+    if (focusAnimRef.current) { cancelAnimationFrame(focusAnimRef.current.rafId); focusAnimRef.current = null }
+    // Exit fullscreen
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {})
     }
   }, [])
+
+  // ── Cinematic play ──────────────────────────────────────────────────────
+  // Flies the camera through a sequence of stops with dolly-through arcs.
+  // Each stop can target a node, layer, or overview. Between stops, the
+  // camera passes through intermediate depth (fog thickens then clears).
+  const playCinematic = useCallback((stops: PresentStop[]) => {
+    if (stops.length === 0) return
+    if (focusAnimRef.current) { cancelAnimationFrame(focusAnimRef.current.rafId); focusAnimRef.current = null }
+
+    // Request fullscreen for stage discipline
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {})
+      }
+    } catch (_) {}
+
+    setPresentMode(true)
+
+    let stopIdx = 0
+    const flyToStop = () => {
+      if (stopIdx >= stops.length) {
+        // End of path — exit cinematic mode
+        exitPresentationRef.current()
+        return
+      }
+      const stop = stops[stopIdx]
+      const nodes = stateRef.current.nodes
+      const layers = stateRef.current.layers
+
+      let targetX = 0, targetY = 0, targetZ = 80
+      let targetZoom = stop.zoom
+
+      if (stop.type === 'node') {
+        const node = nodes.find(n => n.id === stop.targetId)
+        if (node) {
+          targetX = -node.x * cameraRef.current.zoom
+          targetY = -node.y * cameraRef.current.zoom
+          targetZ = -node.z + 80
+          dispatch({ type: 'SELECT', ids: [node.id] })
+        }
+      } else if (stop.type === 'layer') {
+        const layer = layers.find(l => l.id === stop.targetId)
+        if (layer) {
+          targetZ = -layer.z + 80
+          // Keep current panX/panY, just dolly z
+          targetX = cameraRef.current.panX
+          targetY = cameraRef.current.panY
+        }
+      } else {
+        // Overview — reset to see all
+        targetX = 0; targetY = 0; targetZ = 80
+        targetZoom = stop.zoom
+        dispatch({ type: 'SELECT', ids: [] })
+      }
+
+      // Animate with dolly-through arc
+      // Add a slight z-overshoot for cinematic feel
+      const DURATION = reducedMotionRef.current ? 200 : 1200
+      const startTime = performance.now()
+      const startX = cameraRef.current.panX
+      const startY = cameraRef.current.panY
+      const startZ = cameraRef.current.panZ
+      const startZoom = cameraRef.current.zoom
+      // Dolly-through: overshoot z halfway, then settle
+      const midZ = (startZ + targetZ) / 2 - 120
+
+      const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTime) / DURATION)
+        const e = easeInOutCubic(t)
+        // Use a slight arc for z (go deeper then come back)
+        let zVal: number
+        if (t < 0.5) {
+          // First half: arc through midZ
+          const halfT = t * 2
+          const halfE = easeInOutCubic(halfT)
+          zVal = startZ + (midZ - startZ) * halfE
+        } else {
+          // Second half: settle to target
+          const halfT = (t - 0.5) * 2
+          const halfE = easeInOutCubic(halfT)
+          zVal = midZ + (targetZ - midZ) * halfE
+        }
+
+        setCamera(c => ({
+          ...c,
+          panX: startX + (targetX - startX) * e,
+          panY: startY + (targetY - startY) * e,
+          panZ: zVal,
+          zoom: startZoom + (targetZoom - startZoom) * e,
+        }))
+
+        if (t < 1) {
+          focusAnimRef.current = { ...focusAnimRef.current!, rafId: requestAnimationFrame(tick) }
+        } else {
+          // Stop reached — either auto-advance after dwell or wait for manual nav
+          if (stop.dwell > 0 && stopIdx < stops.length - 1) {
+            setTimeout(() => {
+              stopIdx++
+              flyToStop()
+            }, stop.dwell * 1000)
+          }
+        }
+      }
+
+      focusAnimRef.current = { rafId: requestAnimationFrame(tick), targetPanX: targetX, targetPanY: targetY, targetPanZ: targetZ }
+    }
+
+    // Start the first stop
+    flyToStop()
+  }, [])
+
+  const playCinematicRef = useRef(playCinematic); playCinematicRef.current = playCinematic
 
   // PNG export
   const exportPng = useCallback(async () => {
@@ -1039,9 +1205,20 @@ export const Scene3D: React.FC = () => {
     dragState.current = null
   }, [pushHistory])
 
-  // Smooth wheel zoom with zoom-to-cursor
+  // Smooth wheel zoom with zoom-to-cursor + dolly (panZ) on plain scroll
   const handleWheel = useCallback((e: WheelEvent) => {
-    if (!e.metaKey && !e.ctrlKey) return
+    // Plain scroll (no modifier) → dolly (fly in/out through depth)
+    if (!e.metaKey && !e.ctrlKey) {
+      if (e.shiftKey) {
+        // Shift+scroll → dolly forward/backward
+        e.preventDefault()
+        lastActivityRef.current = performance.now()
+        if (focusAnimRef.current) { cancelAnimationFrame(focusAnimRef.current.rafId); focusAnimRef.current = null }
+        const delta = e.deltaY * 0.6
+        setCamera(c => ({ ...c, panZ: Math.max(-800, Math.min(800, c.panZ + delta)) }))
+      }
+      return
+    }
     lastActivityRef.current = performance.now()
     e.preventDefault()
 
@@ -1258,10 +1435,8 @@ export const Scene3D: React.FC = () => {
 
       if (s.editingId) return
 
-      // Presentation mode navigation
+      // Cinematic presentation: ESC exits, space/arrows advance manually
       if (presentModeRef.current) {
-        if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); presentNavRef.current(1); return }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); presentNavRef.current(-1); return }
         if (e.key === 'Escape') { exitPresentationRef.current(); return }
         return
       }
@@ -1376,6 +1551,20 @@ export const Scene3D: React.FC = () => {
         enterPresentationRef.current()
       } else if (e.key === 'e' || e.key === 'E') {
         // Emoji picking now handled via node toolbar
+      } else if (e.key === 'i' || e.key === 'I') {
+        // Toggle orbit mode (wider mouse-parallax to reveal depth)
+        e.preventDefault()
+        setOrbitMode(v => !v)
+      } else if (e.key === '[') {
+        // Nudge selected node deeper (push back)
+        if (!sel) return
+        e.preventDefault()
+        handleNudgeDepthRef.current(sel, -DEPTH_STEP)
+      } else if (e.key === ']') {
+        // Nudge selected node shallower (bring forward)
+        if (!sel) return
+        e.preventDefault()
+        handleNudgeDepthRef.current(sel, DEPTH_STEP)
       } else if (
         e.key.length === 1 &&
         !e.metaKey && !e.ctrlKey && !e.altKey &&
@@ -1411,8 +1600,6 @@ export const Scene3D: React.FC = () => {
   enterPresentationRef.current = enterPresentation
   const exitPresentationRef = useRef(exitPresentation)
   exitPresentationRef.current = exitPresentation
-  const presentNavRef = useRef(presentNav)
-  presentNavRef.current = presentNav
 
 
   // ── Pages handlers ────────────────────────────────────────────────────────────
@@ -1422,7 +1609,7 @@ export const Scene3D: React.FC = () => {
     // Save current page state into pages array first (sync)
     const currentId = pagesStateRef.current.activeId
     const updatedPages = pagesStateRef.current.pages.map(p =>
-      p.id === currentId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links } : p
+      p.id === currentId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links, layers: stateRef.current.layers } : p
     )
     const target = updatedPages.find(p => p.id === id)
     if (!target) return
@@ -1430,6 +1617,7 @@ export const Scene3D: React.FC = () => {
     setPagesState({ pages: updatedPages, activeId: id })
     dispatch({ type: 'SET_NODES', nodes: target.nodes ?? blankCanvas })
     dispatch({ type: 'SET_LINKS', links: target.links ?? [] })
+    dispatch({ type: 'SET_LAYERS', layers: target.layers ?? DEFAULT_LAYERS })
     dispatch({ type: 'SELECT', ids: [] })
     stashPageHistory(currentId)
     restorePageHistory(id)
@@ -1446,6 +1634,7 @@ export const Scene3D: React.FC = () => {
       name: `Page ${pagesStateRef.current.pages.length + 1}`,
       nodes: [{ id: 'root', parentId: null, title: 'Main Topic', x: 0, y: 0, z: 0 }],
       links: [],
+      layers: DEFAULT_LAYERS,
     }
     // Save current page first
     const currentId = pagesStateRef.current.activeId
@@ -1485,6 +1674,7 @@ export const Scene3D: React.FC = () => {
       nextActiveId = remaining[Math.max(0, idx - 1)].id
       const target = remaining.find(p => p.id === nextActiveId)!
       dispatch({ type: 'SET_NODES', nodes: target.nodes ?? blankCanvas })
+      dispatch({ type: 'SET_LAYERS', layers: target.layers ?? DEFAULT_LAYERS })
       dispatch({ type: 'SELECT', ids: [] })
       restorePageHistory(nextActiveId)
       targetZoomRef.current = DEFAULT_CAMERA.zoom
@@ -1498,7 +1688,7 @@ export const Scene3D: React.FC = () => {
     const { pages, activeId } = pagesStateRef.current
     // Save current page first
     const updatedPages = pages.map(p =>
-      p.id === activeId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links } : p
+      p.id === activeId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links, layers: stateRef.current.layers } : p
     )
     const source = updatedPages.find(p => p.id === id)
     if (!source) return
@@ -1508,6 +1698,7 @@ export const Scene3D: React.FC = () => {
       name: `${source.name} copy`,
       nodes: source.nodes.map((n: MindNode) => ({ ...n })),
       links: source.links.map((l: NodeLink) => ({ ...l })),
+      layers: (source.layers ?? DEFAULT_LAYERS).map(l => ({ ...l })),
     }
     const insertIdx = updatedPages.findIndex(p => p.id === id) + 1
     const withNew = [...updatedPages.slice(0, insertIdx), newPage, ...updatedPages.slice(insertIdx)]
@@ -1636,6 +1827,61 @@ export const Scene3D: React.FC = () => {
   handleSpaceOutRef.current = handleSpaceOut
   const showUndoToastRef = useRef<(() => void) | null>(null)
 
+  // ── Layer handlers ──────────────────────────────────────────────────────
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
+
+  const handleLayerAdd = useCallback(() => {
+    const id = nextId()
+    const layers = state.layers
+    const maxZ = layers.length > 0 ? Math.max(...layers.map(l => l.z)) : -120
+    const newLayer: Layer = { id, name: `Layer ${layers.length + 1}`, z: maxZ + 120 }
+    dispatch({ type: 'SET_LAYERS', layers: [...layers, newLayer] })
+    setActiveLayerId(id)
+  }, [])
+
+  const handleLayerRename = useCallback((id: string, name: string) => {
+    const layers = state.layers.map(l => l.id === id ? { ...l, name } : l)
+    dispatch({ type: 'SET_LAYERS', layers })
+  }, [])
+
+  const handleLayerDelete = useCallback((id: string) => {
+    if (state.layers.length <= 1) return
+    const layers = state.layers.filter(l => l.id !== id)
+    // Remove layerId from nodes that were on this layer
+    const nodes = state.nodes.map(n => n.layerId === id ? { ...n, layerId: undefined } : n)
+    dispatch({ type: 'SET_LAYERS', layers })
+    if (activeLayerId === id) setActiveLayerId(null)
+    // Also update nodes if needed
+    dispatch({ type: 'SET_NODES', nodes })
+  }, [activeLayerId])
+
+  const handleLayerReorder = useCallback((layers: Layer[]) => {
+    dispatch({ type: 'SET_LAYERS', layers })
+  }, [])
+
+  const handleLayerSelect = useCallback((layerId: string) => {
+    setActiveLayerId(layerId)
+    const layer = stateRef.current.layers.find(l => l.id === layerId)
+    if (layer) {
+      // Dolly camera to this layer's z-plane
+      animateFocusRef.current(
+        cameraRef.current.panX,
+        cameraRef.current.panY,
+        -layer.z + 80
+      )
+    }
+  }, [])
+
+  const handleAssignNodeToLayer = useCallback((layerId: string) => {
+    const sel = state.selectedIds[0]
+    if (!sel) return
+    const layer = state.layers.find(l => l.id === layerId)
+    if (!layer) return
+    pushHistory()
+    dispatch({ type: 'UPDATE_LAYER', id: sel, layerId })
+    dispatch({ type: 'UPDATE_Z', id: sel, z: layer.z })
+  }, [pushHistory])
+
   const handleClear = useCallback(() => {
     if (!window.confirm('Clear all nodes and start fresh?')) return
     pushHistory()
@@ -1689,6 +1935,16 @@ export const Scene3D: React.FC = () => {
     pushHistory()
     dispatch({ type: 'UPDATE_URL', id, url })
   }, [pushHistory])
+
+  // ── Depth handlers ──────────────────────────────────────────────────────
+  const handleNudgeDepth = useCallback((id: string, delta: number) => {
+    const node = stateRef.current.nodes.find(n => n.id === id)
+    if (!node) return
+    pushHistory()
+    dispatch({ type: 'UPDATE_Z', id, z: node.z + delta })
+  }, [pushHistory])
+  const handleNudgeDepthRef = useRef(handleNudgeDepth)
+  handleNudgeDepthRef.current = handleNudgeDepth
 
   const handleToggleCollapse = useCallback((id: string) => {
     const node = stateRef.current.nodes.find(n => n.id === id)
@@ -1793,8 +2049,8 @@ export const Scene3D: React.FC = () => {
 
   // Determine effective selected IDs (presentation mode overrides) — memoized
   const effectiveSelectedIds = useMemo(
-    () => presentMode && presentOrder.length > 0 ? [presentOrder[presentIndex]] : state.selectedIds,
-    [presentMode, presentOrder, presentIndex, state.selectedIds],
+    () => state.selectedIds,
+    [state.selectedIds],
   )
 
   // Distance map: BFS from selected nodes through the tree — memoized
@@ -2013,7 +2269,13 @@ export const Scene3D: React.FC = () => {
             isLinkTarget={linkingFromId !== null && linkingFromId !== node.id}
             theme={activeTheme}
             searchOverride={searchOverride}
-            zFocus={effectiveSelectedIds.length > 0 ? state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z : undefined}
+            zFocus={
+              effectiveSelectedIds.length > 0
+                ? state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z
+                : activeLayerId
+                  ? state.layers.find(l => l.id === activeLayerId)?.z
+                  : undefined
+            }
             onPointerDown={handleNodePointerDown}
             onAddChild={handleAddChild}
             onDelete={handleDelete}
@@ -2074,6 +2336,16 @@ export const Scene3D: React.FC = () => {
           animation: 'themeFade 400ms ease-out forwards',
         }} />
       )}
+
+      {/* Depth grid with layer plane guides */}
+      <DepthGrid
+        camera={camera}
+        viewport={viewport}
+        isDark={isDark}
+        dotColor={activeTheme.dotColor}
+        layers={state.layers}
+        showPlaneGuides={state.layers.length > 1}
+      />
 
       {/* Vignette — softer, Notion-style */}
       <div style={{
@@ -2152,6 +2424,10 @@ export const Scene3D: React.FC = () => {
           onColorChange={(idx) => handleColorChange(effectiveSelectedIds[0], idx)}
           onEmojiChange={(emoji) => handleEmojiChange(effectiveSelectedIds[0], emoji)}
           onUrlChange={(url) => handleUrlChange(effectiveSelectedIds[0], url)}
+          onNudgeDepth={(delta) => handleNudgeDepth(effectiveSelectedIds[0], delta)}
+          currentZ={state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z}
+          layers={state.layers}
+          onSetLayer={(layerId) => dispatch({ type: 'UPDATE_LAYER', id: effectiveSelectedIds[0], layerId })}
         />
       )}
 
@@ -2175,6 +2451,21 @@ export const Scene3D: React.FC = () => {
       />}
       <ShortcutsPanel theme={activeTheme} suppressed={showThemePicker} />
 
+      {/* Layer rail — right edge, shows depth layers front-to-back */}
+      {!presentMode && (
+        <LayerRail
+          theme={activeTheme}
+          layers={state.layers}
+          activeLayerId={activeLayerId}
+          onSelect={handleLayerSelect}
+          onAdd={handleLayerAdd}
+          onRename={handleLayerRename}
+          onDelete={handleLayerDelete}
+          onReorder={handleLayerReorder}
+          onAssignNode={handleAssignNodeToLayer}
+        />
+      )}
+
       {/* Search bar */}
       {searchActive && (
         <SearchBar
@@ -2187,53 +2478,33 @@ export const Scene3D: React.FC = () => {
         />
       )}
 
-      {/* Presentation mode overlay */}
+      {/* Presentation path editor (cinematic mode) */}
+      {presentPanelOpen && !presentMode && (
+        <PresentPanel
+          theme={activeTheme}
+          nodes={state.nodes}
+          layers={state.layers}
+          stops={cinematicStops}
+          onStopsChange={setCinematicStops}
+          onPlay={() => playCinematicRef.current(cinematicStops)}
+          onStop={() => setPresentPanelOpen(false)}
+        />
+      )}
+
+      {/* Cinematic playback overlay — minimal chrome while playing */}
       {presentMode && (
-        <div
-          style={{
-            position: 'absolute', bottom: 20, left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 300,
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: activeTheme.toolbarBg,
-            backdropFilter: 'blur(12px)',
-            border: `1px solid ${activeTheme.border}`,
-            borderRadius: 16, padding: '8px 16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
-          }}
-        >
-          <button
-            onClick={() => presentNav(-1)}
-            disabled={presentIndex === 0}
-            style={{
-              width: 28, height: 28, borderRadius: 6, border: 'none',
-              background: 'transparent', cursor: presentIndex === 0 ? 'default' : 'pointer',
-              color: activeTheme.textMuted,
-              opacity: presentIndex === 0 ? 0.3 : 1,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <CaretLeft size={12} weight="bold" />
-          </button>
-          <span style={{ fontSize: 13, fontWeight: 600, color: activeTheme.textPrimary, minWidth: 50, textAlign: 'center' }}>
-            {presentIndex + 1} / {presentOrder.length}
-          </span>
-          <button
-            onClick={() => presentNav(1)}
-            disabled={presentIndex === presentOrder.length - 1}
-            style={{
-              width: 28, height: 28, borderRadius: 6, border: 'none',
-              background: 'transparent', cursor: presentIndex === presentOrder.length - 1 ? 'default' : 'pointer',
-              color: activeTheme.textMuted,
-              opacity: presentIndex === presentOrder.length - 1 ? 0.3 : 1,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <CaretRight size={12} weight="bold" />
-          </button>
-          <div style={{ width: 1, height: 16, background: activeTheme.border }} />
-          <span style={{ fontSize: 11, color: activeTheme.textMuted, fontWeight: 500 }}>ESC to exit</span>
+        <div style={{
+          position: 'absolute', bottom: 20, left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 300,
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: activeTheme.toolbarBg,
+          backdropFilter: 'blur(12px)',
+          border: `1px solid ${activeTheme.border}`,
+          borderRadius: 16, padding: '8px 16px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          fontFamily: 'Plus Jakarta Sans, sans-serif',
+        }}>
           <button
             onClick={exitPresentation}
             style={{
@@ -2246,6 +2517,7 @@ export const Scene3D: React.FC = () => {
           >
             <X size={10} weight="bold" />
           </button>
+          <span style={{ fontSize: 11, color: activeTheme.textMuted, fontWeight: 500 }}>ESC to exit</span>
         </div>
       )}
 
@@ -2336,6 +2608,8 @@ export const Scene3D: React.FC = () => {
       onTogglePresent={enterPresentation}
       onOpenThemes={() => setShowThemePicker(true)}
       onSpaceOut={handleSpaceOut}
+      onToggleOrbit={() => setOrbitMode(v => !v)}
+      orbitMode={orbitMode}
     />
     </div>
   )

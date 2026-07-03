@@ -20,9 +20,34 @@ export interface MindNode {
   /** External URL link attached to the card */
   url?: string
   collapsed?: boolean
+  /** Optional layer assignment — node sits on this named z-plane */
+  layerId?: string
   x: number
   y: number
   z: number
+}
+
+// ── Layers ──────────────────────────────────────────────────────────────────
+export interface Layer {
+  id: string
+  name: string
+  z: number
+  color?: string
+}
+
+export const DEFAULT_LAYERS: Layer[] = [
+  { id: 'l-front',  name: 'Front',  z: 120 },
+  { id: 'l-mid',    name: 'Mid',    z: 0 },
+  { id: 'l-back',   name: 'Back',   z: -120 },
+]
+
+/** Returns a human-readable depth band label for a given z value */
+export function depthBand(z: number): string {
+  if (z > 150) return 'Front'
+  if (z > 40) return 'Mid-forward'
+  if (z > -40) return 'Mid'
+  if (z > -150) return 'Mid-back'
+  return 'Back'
 }
 
 export const seedNodes: MindNode[] = [
@@ -91,7 +116,7 @@ export function addChildAt(nodes: MindNode[], parentId: string, id: string, x: n
   if (!parent) return nodes
   const ang  = Math.atan2(y - parent.y, x - parent.x)
   const zOff = Math.sin(ang * 2) * 100
-  return [...nodes, { id, parentId, title: '', colorIndex: parent.colorIndex, x, y, z: parent.z + zOff }]
+  return [...nodes, { id, parentId, title: '', colorIndex: parent.colorIndex, layerId: parent.layerId, x, y, z: parent.z + zOff }]
 }
 
 export function addChild(nodes: MindNode[], parentId: string, id: string): MindNode[] {
@@ -110,6 +135,8 @@ export function addChild(nodes: MindNode[], parentId: string, id: string): MindN
       id, parentId,
       title: '',
       colorIndex: parent.colorIndex,
+      // Inherit parent's layer so child stays on the same z-plane
+      layerId: parent.layerId,
       x: parent.x + Math.cos(ang) * r,
       y: parent.y + Math.sin(ang) * r,
       z: parent.z + zOff,
@@ -146,16 +173,21 @@ export function addSibling(nodes: MindNode[], siblingId: string, id: string): Mi
  * Re-arranges all nodes into a clean radial layout.
  * Root stays at (0,0). Its children are evenly spaced in a full circle.
  * Grandchildren+ fan out in a narrowing cone pointing away from their parent.
+ *
+ * Depth-aware: each root branch gets its own z-band (−120, 0, +120, …)
+ * so spatial depth mirrors semantic structure.
  */
 export function autoLayout(nodes: MindNode[]): MindNode[] {
   const result = nodes.map(n => ({ ...n }))
 
   const RADII = [310, 240, 185, 145, 115]   // orbit radius per depth level
+  const BRANCH_Z_STEP = 120                  // z-band spacing per root branch
 
   function layout(
     parentId: string,
     parentX: number,
     parentY: number,
+    parentZ: number,
     depth: number,
     coneCenter: number,   // outward direction (radians)
     coneHalf: number,     // half the spread angle (radians)
@@ -172,10 +204,15 @@ export function autoLayout(nodes: MindNode[]): MindNode[] {
         : coneCenter - coneHalf + (i / (n - 1)) * coneHalf * 2
       child.x = parentX + Math.cos(ang) * r
       child.y = parentY + Math.sin(ang) * r
-      child.z = Math.sin(ang * 2 + i * 0.7) * 120
+      // Depth: branch z-band for root children, parent+small variation for deeper
+      if (depth === 0) {
+        child.z = parentZ + (i - (n - 1) / 2) * BRANCH_Z_STEP
+      } else {
+        child.z = parentZ + Math.sin(ang * 2 + i * 0.7) * 40
+      }
       // Narrowing cone for this node's own children
       const nextHalf = Math.min(Math.PI * 0.70, Math.max(Math.PI * 0.25, n * 0.40))
-      layout(child.id, child.x, child.y, depth + 1, ang, nextHalf)
+      layout(child.id, child.x, child.y, child.z, depth + 1, ang, nextHalf)
     })
   }
 
@@ -188,9 +225,10 @@ export function autoLayout(nodes: MindNode[]): MindNode[] {
       const ang = rc === 1 ? 0 : (i / rc) * Math.PI * 2
       child.x = Math.cos(ang) * RADII[0]
       child.y = Math.sin(ang) * RADII[0]
-      child.z = Math.sin(ang * 2 + i * 0.7) * 120
+      // Assign z-band: spread root children across −N*STEP to +N*STEP
+      child.z = (i - (rc - 1) / 2) * BRANCH_Z_STEP
       const half = Math.min(Math.PI * 0.70, Math.max(Math.PI * 0.25, rc * 0.38))
-      layout(child.id, child.x, child.y, 1, ang, half)
+      layout(child.id, child.x, child.y, child.z, 1, ang, half)
     })
   }
 
