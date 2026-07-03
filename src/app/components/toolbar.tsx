@@ -14,7 +14,6 @@ import {
   CirclesFour,
   Trash,
   DotsThree,
-  Globe,
 } from '@phosphor-icons/react'
 import type { MindNode, NodeLink } from '../lib/mindmap'
 import { parseOutlineToNodes } from '../lib/mindmap'
@@ -47,8 +46,6 @@ interface Props {
   onToggleDark: () => void
   onOpenThemes: () => void
   onSpaceOut: () => void
-  onToggleOrbit: () => void
-  orbitMode: boolean
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────────
@@ -175,7 +172,7 @@ export const Toolbar: React.FC<Props> = ({
   zoom, theme, bp,
   onZoomIn, onZoomOut, onReset, onFitScreen,
   onClear, onImport, onImportBackup, onExportPng, onExportMarkdown, onExportBackup,
-  onToggleDark, onOpenThemes, onSpaceOut, onToggleOrbit, orbitMode,
+  onToggleDark, onOpenThemes, onSpaceOut,
 }) => {
   const fileRef = useRef<HTMLInputElement>(null)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -333,15 +330,9 @@ export const Toolbar: React.FC<Props> = ({
             {isDark ? <Sun {...iconProps} /> : <Moon {...iconProps} />}
           </TBtn>
           {!compact && (
-            <>
-              <TBtn onClick={onToggleOrbit} label={orbitMode ? 'Orbit mode on  (I)' : 'Orbit mode  (I — reveals depth)'} theme={t} active={orbitMode}>
-                <Globe {...iconProps} />
-              </TBtn>
-              {/* Space Out — icon-only in the view group */}
-              <TBtn onClick={onSpaceOut} label="Auto-arrange into circles  (O)" theme={t}>
-                <CirclesFour size={16} weight="regular" />
-              </TBtn>
-            </>
+            <TBtn onClick={onSpaceOut} label="Auto-arrange into circles  (O)" theme={t}>
+              <CirclesFour size={16} weight="regular" />
+            </TBtn>
           )}
         </div>
 

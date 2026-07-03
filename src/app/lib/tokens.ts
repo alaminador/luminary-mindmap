@@ -117,6 +117,3 @@ export const TOOLTIP_SHOW_DELAY = 300
 // Notion uses backdrop-filter blur on floating panels
 export const BLUR_STRONG = 'blur(12px)'
 export const BLUR_SOFT = 'blur(8px)'
-
-// ── Depth ──────────────────────────────────────────────────────────────────
-export const DEPTH_STEP = 40

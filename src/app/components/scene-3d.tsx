@@ -9,9 +9,8 @@ import type { Camera } from '../lib/projection'
 import { project } from '../lib/projection'
 import { getTheme, LIGHT_THEMES, DARK_THEMES } from '../lib/themes'
 import { useBreakpoints } from '../lib/use-responsive'
-import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT, DEPTH_STEP } from '../lib/tokens'
+import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT } from '../lib/tokens'
 import { EdgesOverlay } from './edges-overlay'
-import { DepthGrid } from './depth-grid'
 import { MindNodeCard } from './mind-node'
 import { NodeToolbar } from './node-toolbar'
 import { Breadcrumb } from './breadcrumb'
@@ -141,7 +140,6 @@ type Action =
   | { type: 'UPDATE_EMOJI'; id: string; emoji: string | undefined }
   | { type: 'UPDATE_IMAGE'; id: string; image: string | undefined }
   | { type: 'UPDATE_URL'; id: string; url: string | undefined }
-  | { type: 'UPDATE_Z'; id: string; z: number }
   | { type: 'TOGGLE_COLLAPSE'; id: string }
   | { type: 'MOVE_NODES'; deltas: { id: string; dx: number; dy: number; dz: number }[] }
   | { type: 'ADD_LINK'; link: NodeLink }
@@ -207,12 +205,6 @@ function reducer(state: State, action: Action): State {
       )
       return { ...state, nodes }
     }
-    case 'UPDATE_Z': {
-      const nodes = state.nodes.map(n =>
-        n.id === action.id ? { ...n, z: action.z } : n
-      )
-      return { ...state, nodes }
-    }
     case 'TOGGLE_COLLAPSE': {
       const nodes = state.nodes.map(n =>
         n.id === action.id ? { ...n, collapsed: !n.collapsed } : n
@@ -270,9 +262,6 @@ export const Scene3D: React.FC = () => {
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
     try { return localStorage.getItem('mindmap-panel-open') !== 'false' } catch { return true }
   })
-  // Orbit mode: widen mouse parallax so depth is visible on demand
-  const [orbitMode, setOrbitMode] = useState<boolean>(false)
-  const orbitModeRef = useRef(orbitMode); orbitModeRef.current = orbitMode
   // prefers-reduced-motion: read once, cap animations
   const reducedMotionRef = useRef(typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   const bp = useBreakpoints()
@@ -428,7 +417,6 @@ export const Scene3D: React.FC = () => {
   const [savedTick, setSavedTick] = useState(false)
   const savedTickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstSaveRef = useRef(true)
-  const firstRunSwoopDoneRef = useRef(false)
 
   // Auto-save current page nodes/links into the pages array, then persist
   useEffect(() => {
@@ -479,58 +467,16 @@ export const Scene3D: React.FC = () => {
     return () => obs.disconnect()
   }, [panelOpen])
 
-  // First-run camera swoop — slow 2-second dolly that teaches "this space is deep"
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('luminary-swoop-done')) return
-    } catch (_) {}
-    if (firstRunSwoopDoneRef.current) return
-    if (reducedMotionRef.current) {
-      firstRunSwoopDoneRef.current = true
-      try { localStorage.setItem('luminary-swoop-done', '1') } catch (_) {}
-      return
-    }
-    firstRunSwoopDoneRef.current = true
-
-    const DURATION = 2000
-    const startTime = performance.now()
-    const startZ = cameraRef.current.panZ
-    const targetZ = -20  // slight dolly in
-    const startRotY = cameraRef.current.rotY
-    const targetRotY = 0.06  // slight orbit
-
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
-
-    let rafId: number
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startTime) / DURATION)
-      const e = easeOutCubic(t)
-      setCamera(c => ({
-        ...c,
-        panZ: startZ + (targetZ - startZ) * e,
-        rotY: startRotY + (targetRotY - startRotY) * e,
-      }))
-      if (t < 1) {
-        rafId = requestAnimationFrame(tick)
-      } else {
-        try { localStorage.setItem('luminary-swoop-done', '1') } catch (_) {}
-      }
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [])
-
-  // Parallax tilt — subtle by default, wider orbit (25-30°) in orbit mode
+  // Parallax tilt — subtle mouse-driven camera drift
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     lastActivityRef.current = performance.now()
     if (dragState.current) return
     const nx = (e.clientX / viewport.width - 0.5) * 2
     const ny = (e.clientY / viewport.height - 0.5) * 2
-    const factor = orbitModeRef.current ? 1.8 : 1
     setCamera(c => ({
       ...c,
-      rotY: nx * 0.18 * factor,
-      rotX: -ny * 0.12 * factor,
+      rotY: nx * 0.18,
+      rotX: -ny * 0.12,
     }))
   }, [viewport])
 
@@ -1387,20 +1333,6 @@ export const Scene3D: React.FC = () => {
         handleSpaceOutRef.current()
       } else if (e.key === 'e' || e.key === 'E') {
         // Emoji picking now handled via node toolbar
-      } else if (e.key === 'i' || e.key === 'I') {
-        // Toggle orbit mode (wider mouse-parallax to reveal depth)
-        e.preventDefault()
-        setOrbitMode(v => !v)
-      } else if (e.key === '[') {
-        // Nudge selected node deeper (push back)
-        if (!sel) return
-        e.preventDefault()
-        handleNudgeDepthRef.current(sel, -DEPTH_STEP)
-      } else if (e.key === ']') {
-        // Nudge selected node shallower (bring forward)
-        if (!sel) return
-        e.preventDefault()
-        handleNudgeDepthRef.current(sel, DEPTH_STEP)
       } else if (
         e.key.length === 1 &&
         !e.metaKey && !e.ctrlKey && !e.altKey &&
@@ -1707,16 +1639,6 @@ export const Scene3D: React.FC = () => {
     pushHistory()
     dispatch({ type: 'UPDATE_URL', id, url })
   }, [pushHistory])
-
-  // ── Depth handlers ──────────────────────────────────────────────────────
-  const handleNudgeDepth = useCallback((id: string, delta: number) => {
-    const node = stateRef.current.nodes.find(n => n.id === id)
-    if (!node) return
-    pushHistory()
-    dispatch({ type: 'UPDATE_Z', id, z: node.z + delta })
-  }, [pushHistory])
-  const handleNudgeDepthRef = useRef(handleNudgeDepth)
-  handleNudgeDepthRef.current = handleNudgeDepth
 
   const handleToggleCollapse = useCallback((id: string) => {
     const node = stateRef.current.nodes.find(n => n.id === id)
@@ -2088,14 +2010,6 @@ export const Scene3D: React.FC = () => {
         }} />
       )}
 
-      {/* Depth grid */}
-      <DepthGrid
-        camera={camera}
-        viewport={viewport}
-        isDark={isDark}
-        dotColor={activeTheme.dotColor}
-      />
-
       {/* Vignette — softer, Notion-style */}
       <div style={{
         position: 'absolute', inset: 0,
@@ -2160,8 +2074,6 @@ export const Scene3D: React.FC = () => {
           onColorChange={(idx) => handleColorChange(effectiveSelectedIds[0], idx)}
           onEmojiChange={(emoji) => handleEmojiChange(effectiveSelectedIds[0], emoji)}
           onUrlChange={(url) => handleUrlChange(effectiveSelectedIds[0], url)}
-          onNudgeDepth={(delta) => handleNudgeDepth(effectiveSelectedIds[0], delta)}
-          currentZ={state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z}
         />
       )}
 
@@ -2283,8 +2195,6 @@ export const Scene3D: React.FC = () => {
       }}
       onOpenThemes={() => setShowThemePicker(true)}
       onSpaceOut={handleSpaceOut}
-      onToggleOrbit={() => setOrbitMode(v => !v)}
-      orbitMode={orbitMode}
     />
     </div>
   )

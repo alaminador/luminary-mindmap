@@ -25,15 +25,6 @@ export interface MindNode {
   z: number
 }
 
-/** Returns a human-readable depth band label for a given z value */
-export function depthBand(z: number): string {
-  if (z > 150) return 'Front'
-  if (z > 40) return 'Mid-forward'
-  if (z > -40) return 'Mid'
-  if (z > -150) return 'Mid-back'
-  return 'Back'
-}
-
 export const seedNodes: MindNode[] = [
   { id: 'root', parentId: null, title: 'Web Design', description: 'Core disciplines', x: 0, y: 0, z: 0 },
   { id: 'n1', parentId: 'root', title: 'UX Research', description: 'Interviews, tests.', x: -580, y: -260, z: 80 },
@@ -155,21 +146,16 @@ export function addSibling(nodes: MindNode[], siblingId: string, id: string): Mi
  * Re-arranges all nodes into a clean radial layout.
  * Root stays at (0,0). Its children are evenly spaced in a full circle.
  * Grandchildren+ fan out in a narrowing cone pointing away from their parent.
- *
- * Depth-aware: each root branch gets its own z-band (−120, 0, +120, …)
- * so spatial depth mirrors semantic structure.
  */
 export function autoLayout(nodes: MindNode[]): MindNode[] {
   const result = nodes.map(n => ({ ...n }))
 
   const RADII = [310, 240, 185, 145, 115]   // orbit radius per depth level
-  const BRANCH_Z_STEP = 120                  // z-band spacing per root branch
 
   function layout(
     parentId: string,
     parentX: number,
     parentY: number,
-    parentZ: number,
     depth: number,
     coneCenter: number,   // outward direction (radians)
     coneHalf: number,     // half the spread angle (radians)
@@ -186,15 +172,10 @@ export function autoLayout(nodes: MindNode[]): MindNode[] {
         : coneCenter - coneHalf + (i / (n - 1)) * coneHalf * 2
       child.x = parentX + Math.cos(ang) * r
       child.y = parentY + Math.sin(ang) * r
-      // Depth: branch z-band for root children, parent+small variation for deeper
-      if (depth === 0) {
-        child.z = parentZ + (i - (n - 1) / 2) * BRANCH_Z_STEP
-      } else {
-        child.z = parentZ + Math.sin(ang * 2 + i * 0.7) * 40
-      }
+      child.z = Math.sin(ang * 2 + i * 0.7) * 120
       // Narrowing cone for this node's own children
       const nextHalf = Math.min(Math.PI * 0.70, Math.max(Math.PI * 0.25, n * 0.40))
-      layout(child.id, child.x, child.y, child.z, depth + 1, ang, nextHalf)
+      layout(child.id, child.x, child.y, depth + 1, ang, nextHalf)
     })
   }
 
@@ -207,10 +188,9 @@ export function autoLayout(nodes: MindNode[]): MindNode[] {
       const ang = rc === 1 ? 0 : (i / rc) * Math.PI * 2
       child.x = Math.cos(ang) * RADII[0]
       child.y = Math.sin(ang) * RADII[0]
-      // Assign z-band: spread root children across −N*STEP to +N*STEP
-      child.z = (i - (rc - 1) / 2) * BRANCH_Z_STEP
+      child.z = Math.sin(ang * 2 + i * 0.7) * 120
       const half = Math.min(Math.PI * 0.70, Math.max(Math.PI * 0.25, rc * 0.38))
-      layout(child.id, child.x, child.y, child.z, 1, ang, half)
+      layout(child.id, child.x, child.y, 1, ang, half)
     })
   }
 
