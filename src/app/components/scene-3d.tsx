@@ -2076,12 +2076,12 @@ export const Scene3D: React.FC = () => {
         }} />
       )}
 
-      {/* Vignette */}
+      {/* Vignette — softer, Notion-style */}
       <div style={{
         position: 'absolute', inset: 0,
         pointerEvents: 'none',
         zIndex: 2,
-        background: `radial-gradient(ellipse at 50% 50%, transparent 42%, ${activeTheme.canvasBg}44 72%, ${activeTheme.canvasBg}AA 100%)`,
+        background: `radial-gradient(ellipse at 50% 50%, transparent 50%, ${activeTheme.canvasBg}33 80%, ${activeTheme.canvasBg}88 100%)`,
       }} />
 
       {/* New-child ghost dot (drag off a node's "+" handle) */}

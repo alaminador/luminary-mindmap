@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useMemo } from 'react'
 import type { MindNode } from '../lib/mindmap'
 import type { Camera } from '../lib/projection'
 import type { AppTheme } from '../lib/themes'
+import { RADIUS_CARD, SHADOW_MD, BLUR_SOFT } from '../lib/tokens'
 
 const MM_W = 196
 const MM_H = 128
@@ -162,12 +163,12 @@ export const Minimap: React.FC<Props> = ({ nodes, camera, viewport, theme, onNav
       style={{
         position: 'absolute', bottom: 16, left: 16, zIndex: 600,
         background: `${theme.toolbarBg}`,
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        backdropFilter: BLUR_SOFT,
+        WebkitBackdropFilter: BLUR_SOFT,
         border: `1px solid ${theme.border}40`,
-        borderRadius: 10,
+        borderRadius: RADIUS_CARD,
         overflow: 'hidden',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        boxShadow: SHADOW_MD,
       }}
     >
       <canvas

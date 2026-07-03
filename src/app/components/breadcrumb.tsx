@@ -1,6 +1,7 @@
 import React from 'react'
 import type { MindNode } from '../lib/mindmap'
 import type { AppTheme } from '../lib/themes'
+import { RADIUS_PILL, SHADOW_MD, BLUR_STRONG, LABEL_MEDIUM, SPACE_3, SPACE_4, SPACE_8 } from '../lib/tokens'
 
 interface Props {
   nodes: MindNode[]
@@ -32,16 +33,17 @@ export const Breadcrumb = React.memo(function Breadcrumb({ nodes, selectedId, th
         zIndex: 600,
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
+        gap: SPACE_3,
         background: t.toolbarBg,
-        backdropFilter: 'blur(12px)',
+        backdropFilter: BLUR_STRONG,
+        WebkitBackdropFilter: BLUR_STRONG,
         border: `1px solid ${t.border}`,
-        borderRadius: 20,
-        padding: '5px 12px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-        fontFamily: 'Plus Jakarta Sans, sans-serif',
-        fontSize: 12,
-        fontWeight: 500,
+        borderRadius: RADIUS_PILL,
+        padding: `${SPACE_4}px ${SPACE_8}px`,
+        boxShadow: SHADOW_MD,
+        fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
+        fontSize: LABEL_MEDIUM.size,
+        fontWeight: LABEL_MEDIUM.weight,
         maxWidth: '60vw',
         overflow: 'hidden',
         whiteSpace: 'nowrap',

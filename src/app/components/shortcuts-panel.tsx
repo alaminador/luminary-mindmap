@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { List, X } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
-import { OVERLAY_EASING } from '../lib/tokens'
+import { OVERLAY_EASING, RADIUS_XL, SHADOW_LG, BLUR_STRONG, SPACE_7, SPACE_8 } from '../lib/tokens'
 
 const GROUPS = [
   {
@@ -94,14 +94,14 @@ export const ShortcutsPanel: React.FC<Props> = ({ theme: t, suppressed }) => {
         <div
           style={{
             background: t.panelBg,
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            backdropFilter: BLUR_STRONG,
+            WebkitBackdropFilter: BLUR_STRONG,
             border: `1px solid ${t.border}`,
-            borderRadius: 16,
-            padding: '12px 14px 10px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            borderRadius: RADIUS_XL,
+            padding: `${SPACE_8}px ${SPACE_7}px ${SPACE_7}px`,
+            boxShadow: SHADOW_LG,
             minWidth: 218,
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
             maxHeight: 'calc(100vh - 120px)',
             overflowY: 'auto',
             animation: `overlayIn 150ms ${OVERLAY_EASING} forwards`,

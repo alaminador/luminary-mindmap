@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import { X, Check } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
 import { LIGHT_THEMES, DARK_THEMES } from '../lib/themes'
-import { ACCENT, OVERLAY_EASING } from '../lib/tokens'
+import { ACCENT, OVERLAY_EASING, RADIUS_CARD, RADIUS_BASE, RADIUS_XL, SHADOW_FLOATING, BLUR_STRONG, LABEL_MEDIUM, SPACE_3, SPACE_6, SPACE_7, SPACE_8, SPACE_12, SPACE_13 } from '../lib/tokens'
 
 type PaperType    = 'blank' | 'lined' | 'dotted' | 'mini-squared' | 'squared'
 type PaperOpacity = 'subtle' | 'clear' | 'bold'
@@ -55,8 +55,8 @@ export const ThemePicker: React.FC<Props> = ({
       style={{
         position: 'fixed', inset: 0, zIndex: 500,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(0,0,0,0.45)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.50)',
+        backdropFilter: BLUR_STRONG,
       }}
       onPointerDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -64,13 +64,13 @@ export const ThemePicker: React.FC<Props> = ({
         style={{
           background: t.panelBg,
           border: `1px solid ${t.border}`,
-          borderRadius: 16,
+          borderRadius: RADIUS_XL,
           width: 700,
           maxHeight: '85vh',
           overflowY: 'auto',
-          padding: '20px 24px 24px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          fontFamily: 'Plus Jakarta Sans, sans-serif',
+          padding: `${SPACE_12}px ${SPACE_13}px ${SPACE_13}px`,
+          boxShadow: SHADOW_FLOATING,
+          fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
           animation: `overlayIn 150ms ${OVERLAY_EASING} forwards`,
         }}
       >
@@ -152,13 +152,13 @@ export const ThemePicker: React.FC<Props> = ({
 const SettingRow: React.FC<{ label: string; theme: AppTheme; children: React.ReactNode }> = ({ label, theme: t, children }) => (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 14px',
+    padding: `${SPACE_7}px ${SPACE_7}px`,
     background: t.groupBg,
     border: `1px solid ${t.border}`,
-    borderRadius: 10,
-    marginBottom: 8,
+    borderRadius: RADIUS_CARD,
+    marginBottom: SPACE_6,
   }}>
-    <span style={{ fontSize: 13, fontWeight: 600, color: t.textPrimary }}>{label}</span>
+    <span style={{ fontSize: LABEL_MEDIUM.size, fontWeight: 600, color: t.textPrimary, fontFamily: "'Plus Jakarta Sans', Inter, sans-serif" }}>{label}</span>
     {children}
   </div>
 )
@@ -173,15 +173,15 @@ const SegBtn: React.FC<{ active: boolean; label: string; theme: AppTheme; onClic
   <button
     onClick={onClick}
     style={{
-      padding: '4px 12px',
-      borderRadius: 7,
+      padding: `${SPACE_3}px ${SPACE_8}px`,
+      borderRadius: RADIUS_BASE,
       border: `1px solid ${active ? t.textMuted : 'transparent'}`,
       background: active ? (t.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)') : 'transparent',
       color: active ? t.textPrimary : t.textMuted,
-      fontSize: 12.5,
+      fontSize: LABEL_MEDIUM.size,
       fontWeight: active ? 600 : 500,
       cursor: 'pointer',
-      fontFamily: 'Plus Jakarta Sans, sans-serif',
+      fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
       transition: 'all 0.12s',
       whiteSpace: 'nowrap',
     }}
@@ -200,8 +200,8 @@ const ThemeCard: React.FC<{ t: AppTheme; isActive: boolean; onSelect: (id: strin
       style={{
         background: t.canvasBg,
         border: `${isActive ? 2.5 : 1.5}px solid ${isActive ? ACCENT : (dark ? '#2a2a3a' : '#e2e8f0')}`,
-        borderRadius: 12,
-        padding: '12px 14px',
+        borderRadius: RADIUS_CARD,
+        padding: `${SPACE_8}px ${SPACE_7}px`,
         cursor: 'pointer',
         transition: 'transform 0.1s',
         position: 'relative',
@@ -211,7 +211,7 @@ const ThemeCard: React.FC<{ t: AppTheme; isActive: boolean; onSelect: (id: strin
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontWeight: 700, fontSize: 13, color: dark ? '#e8e8f8' : '#1a2332', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+        <span style={{ fontWeight: 700, fontSize: 13, color: dark ? '#e8e8f8' : '#1a2332', fontFamily: "'Plus Jakarta Sans', Inter, sans-serif" }}>
           {t.name}
         </span>
         <span style={{ fontSize: 13 }}>{dark ? '🌙' : '☀️'}</span>

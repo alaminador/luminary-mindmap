@@ -113,7 +113,7 @@ export const EdgesOverlay = React.memo(function EdgesOverlay({ nodes, distanceMa
             <stop offset="100%" stopColor={edgeColor} stopOpacity="0.4" />
           </linearGradient>
         </defs>
-        <path d={d} fill="none" stroke={`url(#${gradId})`} strokeWidth={2.2} strokeLinecap="round"
+        <path d={d} fill="none" stroke={`url(#${gradId})`} strokeWidth={2.0} strokeLinecap="round"
           pathLength={isNew ? 1 : undefined}
           strokeDasharray={isNew ? '1' : undefined}
           style={drawAnim}

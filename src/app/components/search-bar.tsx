@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { MagnifyingGlass, X } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
+import { RADIUS_CARD, SHADOW_LG, BLUR_STRONG, LABEL_MEDIUM, SPACE_1, SPACE_5, SPACE_6, SPACE_7 } from '../lib/tokens'
 
 interface CrossPageResult {
   pageId: string
@@ -45,12 +46,14 @@ export const SearchBar: React.FC<Props> = ({ query, onChange, onClose, theme, cr
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: SPACE_6,
           background: theme.panelBg,
           border: `1px solid ${theme.border}`,
-          borderRadius: hasResults ? '8px 8px 0 0' : 8,
-          padding: '6px 10px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          borderRadius: hasResults ? `${RADIUS_CARD}px ${RADIUS_CARD}px 0 0` : RADIUS_CARD,
+          padding: `${SPACE_5}px ${SPACE_7}px`,
+          boxShadow: SHADOW_LG,
+          backdropFilter: BLUR_STRONG,
+          WebkitBackdropFilter: BLUR_STRONG,
         }}
       >
         <MagnifyingGlass size={14} color={theme.textMuted} />
@@ -63,10 +66,10 @@ export const SearchBar: React.FC<Props> = ({ query, onChange, onClose, theme, cr
             border: 'none',
             outline: 'none',
             background: 'transparent',
-            fontSize: 13,
-            fontWeight: 500,
+            fontSize: LABEL_MEDIUM.size,
+            fontWeight: LABEL_MEDIUM.weight,
             color: theme.nodeTextPrimary,
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
             width: 200,
           }}
           onKeyDown={e => {
@@ -76,7 +79,7 @@ export const SearchBar: React.FC<Props> = ({ query, onChange, onClose, theme, cr
         <button
           onClick={onClose}
           style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+            background: 'none', border: 'none', cursor: 'pointer', padding: SPACE_1,
             color: theme.textMuted, display: 'flex', alignItems: 'center',
           }}
         >
@@ -90,10 +93,12 @@ export const SearchBar: React.FC<Props> = ({ query, onChange, onClose, theme, cr
           background: theme.panelBg,
           border: `1px solid ${theme.border}`,
           borderTop: 'none',
-          borderRadius: '0 0 8px 8px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+          borderRadius: `0 0 ${RADIUS_CARD}px ${RADIUS_CARD}px`,
+          boxShadow: SHADOW_LG,
           maxHeight: 240,
           overflowY: 'auto',
+          backdropFilter: BLUR_STRONG,
+          WebkitBackdropFilter: BLUR_STRONG,
         }}>
           <div style={{
             padding: '6px 10px 4px',

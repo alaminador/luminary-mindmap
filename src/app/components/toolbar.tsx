@@ -19,7 +19,7 @@ import {
 import type { MindNode, NodeLink } from '../lib/mindmap'
 import { parseOutlineToNodes } from '../lib/mindmap'
 import type { AppTheme } from '../lib/themes'
-import { DANGER, FOCUS_RING_COLOR, FOCUS_RING_ALPHA, FOCUS_RING_WIDTH, FOCUS_RING_OFFSET, TOOLTIP_SHOW_DELAY } from '../lib/tokens'
+import { DANGER, FOCUS_RING_COLOR, FOCUS_RING_ALPHA, FOCUS_RING_WIDTH, FOCUS_RING_OFFSET, TOOLTIP_SHOW_DELAY, RADIUS_CARD, RADIUS_MD, SHADOW_SM, SHADOW_LG, BLUR_STRONG, SPACE_1, SPACE_3, SPACE_4, SPACE_5, SPACE_6, SPACE_11, LABEL_MEDIUM } from '../lib/tokens'
 import { ConfirmDialog } from './confirm-dialog'
 
 interface BackupPage {
@@ -246,14 +246,14 @@ export const Toolbar: React.FC<Props> = ({
       position: 'absolute', top: 0, left: 0, right: 0, zIndex: 200,
       height: 52,
       background: t.toolbarBg,
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
+      backdropFilter: BLUR_STRONG,
+      WebkitBackdropFilter: BLUR_STRONG,
       borderBottom: `1px solid ${t.border}`,
       display: 'flex', alignItems: 'center',
-      padding: '0 14px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      fontFamily: 'Plus Jakarta Sans, sans-serif',
-      gap: 4,
+      padding: `0 ${SPACE_11}px`,
+      boxShadow: SHADOW_SM,
+      fontFamily: "'Plus Jakarta Sans', Inter, -apple-system, sans-serif",
+      gap: SPACE_6,
     }}>
 
       {/* Logo */}
@@ -279,13 +279,13 @@ export const Toolbar: React.FC<Props> = ({
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 1,
-          background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: 8, padding: '3px 5px',
+          background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: RADIUS_CARD, padding: `${SPACE_1}px ${SPACE_4}px`,
         }}>
           <TBtn onClick={onZoomOut} label="Zoom out  (⌘ −)" theme={t}>
             <MagnifyingGlassMinus {...iconProps} />
           </TBtn>
 
-          <span style={{ fontSize: 12, color: t.textMuted, minWidth: 40, textAlign: 'center', fontWeight: 500, userSelect: 'none' }}>
+          <span style={{ fontSize: LABEL_MEDIUM.size, color: t.textMuted, minWidth: 40, textAlign: 'center', fontWeight: LABEL_MEDIUM.weight, userSelect: 'none' }}>
             {Math.round(zoom * 100)}%
           </span>
 
@@ -311,7 +311,7 @@ export const Toolbar: React.FC<Props> = ({
         {/* View group — always visible */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 1,
-          background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: 8, padding: '3px 5px',
+          background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: RADIUS_CARD, padding: `${SPACE_1}px ${SPACE_4}px`,
         }}>
           <TBtn onClick={onOpenThemes} label="Themes & background" theme={t}>
             <Palette {...iconProps} />
@@ -334,7 +334,7 @@ export const Toolbar: React.FC<Props> = ({
             <Div theme={t} />
             <div style={{
               display: 'flex', alignItems: 'center', gap: 1,
-              background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: 8, padding: '3px 5px',
+              background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: RADIUS_CARD, padding: `${SPACE_1}px ${SPACE_4}px`,
             }}>
               <TBtn onClick={() => fileRef.current?.click()} label="Import outline or JSON" theme={t}>
                 <UploadSimple {...iconProps} />
@@ -364,11 +364,12 @@ export const Toolbar: React.FC<Props> = ({
               position: 'absolute', top: 'calc(100% + 6px)', right: 0,
               zIndex: 9999,
               background: t.toolbarBg,
-              backdropFilter: 'blur(12px)',
+              backdropFilter: BLUR_STRONG,
+              WebkitBackdropFilter: BLUR_STRONG,
               border: `1px solid ${t.border}`,
-              borderRadius: 8,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-              padding: 4, minWidth: 150,
+              borderRadius: RADIUS_CARD,
+              boxShadow: SHADOW_LG,
+              padding: SPACE_3, minWidth: 160,
             }}>
               {/* File actions collapsed into overflow on narrow screens */}
               {!wide && (
@@ -425,11 +426,11 @@ const OBtn: React.FC<{
   <button
     onClick={onClick}
     style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      width: '100%', padding: '7px 9px',
-      background: 'transparent', border: 'none', borderRadius: 5,
+      display: 'flex', alignItems: 'center', gap: SPACE_6,
+      width: '100%', padding: `${SPACE_5}px ${SPACE_6}px`,
+      background: 'transparent', border: 'none', borderRadius: RADIUS_MD,
       cursor: 'pointer',
-      fontSize: 12, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
+      fontSize: LABEL_MEDIUM.size, fontWeight: LABEL_MEDIUM.weight, fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
       color: danger ? DANGER : t.textPrimary,
       textAlign: 'left',
       outline: 'none',

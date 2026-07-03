@@ -3,7 +3,7 @@ import { Plus, X, CaretUp, CaretDown } from '@phosphor-icons/react'
 import type { MindNode } from '../lib/mindmap'
 import type { AppTheme } from '../lib/themes'
 import { playShush } from '../lib/sounds'
-import { SUCCESS, WARNING, LINK } from '../lib/tokens'
+import { SUCCESS, WARNING, LINK, RADIUS_CARD, SHADOW_FLOATING, SHADOW_SM } from '../lib/tokens'
 
 
 interface Props {
@@ -247,7 +247,7 @@ export const MindNodeCard = React.memo(function MindNodeCard({
           minWidth: 140, maxWidth: cardMaxWidth,
           padding: `10px 14px`,
           background: cardBg,
-          borderRadius: 8,
+          borderRadius: RADIUS_CARD,
           border: resolvedBorder,
           outline: isReparentTarget ? `2px dashed ${hexAlpha(borderColor, 0.7)}` : isReparentSource ? `2px dashed ${WARNING}` : isLinkTarget ? `2px solid ${LINK}55` : 'none',
           outlineOffset: isReparentTarget || isReparentSource ? 3 : 0,
@@ -257,12 +257,12 @@ export const MindNodeCard = React.memo(function MindNodeCard({
           userSelect: 'none',
           transition: 'border-color 0.18s, box-shadow 0.18s, opacity 0.25s, filter 0.25s',
           boxShadow: isLinkTarget
-            ? `0 0 0 2px rgba(139,92,246,0.5)`
+            ? `0 0 0 2px ${LINK}55`
             : isSelected
-              ? `0 0 0 2.5px ${hexAlpha(borderColor, 0.22)}, 0 2px 10px ${hexAlpha(borderColor, 0.16)}`
+              ? `0 0 0 2.5px ${hexAlpha(borderColor, 0.22)}, ${SHADOW_FLOATING}`
               : hovered
-                ? '0 12px 40px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.12)'
-                : '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04)',
+                ? SHADOW_FLOATING
+                : SHADOW_SM,
           paddingBottom: showCollapseBtn ? 22 : 10,
         }}
       >

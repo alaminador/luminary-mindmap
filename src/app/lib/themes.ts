@@ -1,3 +1,10 @@
+/**
+ * AppTheme — Notion-flavored themes for Luminary.
+ *
+ * All four themes use the Notion color palette (warm neutrals, brand-blue
+ * CTAs, single-family text ladder) mapped across light and dark surfaces.
+ */
+
 export interface AppTheme {
   id: string
   name: string
@@ -21,7 +28,7 @@ export interface AppTheme {
   nodeBorderDimmed: string
   // Edges
   edgeColor: string
-  // Accent palette
+  // Accent palette (8 hues for color picker)
   palette: string[]
   // Default border colors
   rootColor: string
@@ -29,108 +36,104 @@ export interface AppTheme {
 }
 
 export const THEMES: AppTheme[] = [
-  // ── Gundam Wing — light ───────────────────────────────────────────────────
+  // ── Notion Light — warm paper ─────────────────────────────────────────────
   {
-    id: 'gundam-wing',
-    name: 'Dhaka',
+    id: 'notion-light',
+    name: 'Paper',
     mode: 'light',
-    canvasBg: '#f8f9fc',
-    dotColor: '#dde2ee',
-    toolbarBg: 'rgba(248,249,252,0.94)',
+    canvasBg: '#f6f5f4',
+    dotColor: '#e4e2df',
+    toolbarBg: 'rgba(246,245,244,0.92)',
     panelBg: 'rgba(255,255,255,0.94)',
-    border: '#dde2ee',
-    groupBg: '#f0f2f8',
-    textPrimary: '#1a1f36',
-    textMuted: '#6370a0',
+    border: 'rgba(0,0,0,0.08)',
+    groupBg: 'rgba(0,0,0,0.03)',
+    textPrimary: '#000000',
+    textMuted: '#615d59',
     nodeBg: '#ffffff',
-    nodeTextPrimary: '#1a1f36',
-    nodeTextSecondary: '#6370a0',
-    nodeTextDimmed: '#9ca3c0',
-    nodeSecondaryDimmed: '#c8ccde',
-    nodeBorderDimmed: '#dde2ee',
-    edgeColor: '#b8c0d8',
-    // Same 8 hues as Knight, saturated & punchy for light canvas
-    palette: ['#e53935','#fb8c00','#f9c613','#43a047','#1e88e5','#7b1fa2','#e91e63','#00acc1'],
-    rootColor: '#1e88e5',
-    childColor: '#7b1fa2',
+    nodeTextPrimary: '#000000',
+    nodeTextSecondary: '#615d59',
+    nodeTextDimmed: '#a39e98',
+    nodeSecondaryDimmed: '#c8c5c0',
+    nodeBorderDimmed: 'rgba(0,0,0,0.08)',
+    edgeColor: '#bfbab2',
+    palette: ['#2537b1','#097fe8','#0891b2','#059669','#ca8a04','#dc2626','#7c3aed','#db2777'],
+    rootColor: '#2537b1',
+    childColor: '#097fe8',
   },
 
-  // ── Totoro — light ────────────────────────────────────────────────────────
+  // ── Linen —  cooler light ────────────────────────────────────────────────
   {
-    id: 'totoro',
-    name: 'Rajshahi',
+    id: 'linen',
+    name: 'Linen',
     mode: 'light',
-    canvasBg: '#f0ebe0',
-    dotColor: '#d8d0c0',
-    toolbarBg: 'rgba(240,235,224,0.94)',
-    panelBg: 'rgba(250,247,240,0.94)',
-    border: '#d5cbb8',
-    groupBg: '#e8e0d0',
-    textPrimary: '#2c2418',
-    textMuted: '#6a5c44',
-    nodeBg: '#faf7f0',
-    nodeTextPrimary: '#2c2418',
-    nodeTextSecondary: '#6a5c44',
-    nodeTextDimmed: '#a09070',
-    nodeSecondaryDimmed: '#c8b89a',
-    nodeBorderDimmed: '#d5cbb8',
-    edgeColor: '#c0b090',
-    // Same 8 hues, desaturated & earthy for the muted Totoro feel
-    palette: ['#b07060','#b08840','#a09840','#5a8a5a','#6080a0','#806898','#b07880','#508888'],
-    rootColor: '#5a8a5a',
-    childColor: '#6080a0',
+    canvasBg: '#f8f8f7',
+    dotColor: '#e0dfdd',
+    toolbarBg: 'rgba(248,248,247,0.92)',
+    panelBg: 'rgba(255,255,255,0.94)',
+    border: 'rgba(0,0,0,0.07)',
+    groupBg: 'rgba(0,0,0,0.02)',
+    textPrimary: '#0a0a0a',
+    textMuted: '#5c5955',
+    nodeBg: '#ffffff',
+    nodeTextPrimary: '#0a0a0a',
+    nodeTextSecondary: '#5c5955',
+    nodeTextDimmed: '#9e9a95',
+    nodeSecondaryDimmed: '#c4c1bc',
+    nodeBorderDimmed: 'rgba(0,0,0,0.07)',
+    edgeColor: '#bfbdba',
+    palette: ['#2537b1','#097fe8','#0891b2','#059669','#ca8a04','#dc2626','#7c3aed','#db2777'],
+    rootColor: '#dc2626',
+    childColor: '#059669',
   },
 
-  // ── Knight — dark ─────────────────────────────────────────────────────────
+  // ── Notebook — dark navy ─────────────────────────────────────────────────
   {
-    id: 'knight',
-    name: 'Chittagong',
+    id: 'notebook',
+    name: 'Notebook',
     mode: 'dark',
-    canvasBg: '#08080e',
-    dotColor: '#14141e',
-    toolbarBg: 'rgba(8,8,14,0.96)',
-    panelBg: 'rgba(12,12,20,0.96)',
-    border: '#2f2f4e',
-    groupBg: '#10101c',
-    textPrimary: '#e0e0f0',
-    textMuted: '#8080b0',
-    nodeBg: '#0e0e18',
-    nodeTextPrimary: '#e0e0f0',
-    nodeTextSecondary: '#8080b0',
-    nodeTextDimmed: '#38385a',
-    nodeSecondaryDimmed: '#38385a',
-    nodeBorderDimmed: '#24243a',
-    edgeColor: 'rgba(74,74,122,0.9)',
-    // Base hues — bright & vivid on dark canvas
-    palette: ['#ef5350','#ffa726','#ffee58','#66bb6a','#42a5f5','#7e57c2','#ec407a','#26c6da'],
-    rootColor: '#42a5f5',
-    childColor: '#7e57c2',
+    canvasBg: '#13141a',
+    dotColor: 'rgba(255,255,255,0.05)',
+    toolbarBg: 'rgba(19,20,26,0.92)',
+    panelBg: 'rgba(24,26,34,0.94)',
+    border: 'rgba(255,255,255,0.10)',
+    groupBg: 'rgba(255,255,255,0.04)',
+    textPrimary: '#e8e6e3',
+    textMuted: '#8b8882',
+    nodeBg: '#1e2028',
+    nodeTextPrimary: '#e8e6e3',
+    nodeTextSecondary: '#8b8882',
+    nodeTextDimmed: '#5a5855',
+    nodeSecondaryDimmed: '#3d3b39',
+    nodeBorderDimmed: 'rgba(255,255,255,0.08)',
+    edgeColor: '#4a5060',
+    palette: ['#7c8cf5','#4ea8ff','#34d399','#fbbf24','#f87171','#a78bfa','#fb7185','#22d3ee'],
+    rootColor: '#7c8cf5',
+    childColor: '#4ea8ff',
   },
 
-  // ── Vendetta — dark ───────────────────────────────────────────────────────
+  // ── Midnight — deep navy (hero tradition) ────────────────────────────────
   {
-    id: 'vendetta',
-    name: 'Sylhet',
+    id: 'midnight',
+    name: 'Midnight',
     mode: 'dark',
-    canvasBg: '#08080f',
-    dotColor: '#181825',
-    toolbarBg: 'rgba(8,8,15,0.96)',
-    panelBg: 'rgba(12,12,22,0.96)',
-    border: '#3a2c44',
-    groupBg: '#12101a',
-    textPrimary: '#f0e8e8',
-    textMuted: '#9080a0',
-    nodeBg: '#100d18',
-    nodeTextPrimary: '#f0e8e8',
-    nodeTextSecondary: '#9080a0',
-    nodeTextDimmed: '#484050',
-    nodeSecondaryDimmed: '#484050',
-    nodeBorderDimmed: '#2a2030',
-    edgeColor: 'rgba(96,78,110,0.9)',
-    // Same 8 hues, darkened & moody for the Vendetta dark canvas
-    palette: ['#c04848','#c07820','#a89030','#507850','#3870b0','#6848a8','#b04068','#208888'],
-    rootColor: '#c04848',
-    childColor: '#3870b0',
+    canvasBg: '#0d0e16',
+    dotColor: 'rgba(255,255,255,0.04)',
+    toolbarBg: 'rgba(13,14,22,0.92)',
+    panelBg: 'rgba(18,20,30,0.94)',
+    border: 'rgba(255,255,255,0.08)',
+    groupBg: 'rgba(255,255,255,0.03)',
+    textPrimary: '#dcdad6',
+    textMuted: '#7d7a75',
+    nodeBg: '#1a1c26',
+    nodeTextPrimary: '#dcdad6',
+    nodeTextSecondary: '#7d7a75',
+    nodeTextDimmed: '#4d4b48',
+    nodeSecondaryDimmed: '#33312f',
+    nodeBorderDimmed: 'rgba(255,255,255,0.06)',
+    edgeColor: '#3e4456',
+    palette: ['#8aa0ff','#5ab5ff','#4fd8a6','#fcc94d','#f98080','#b69cff','#fb8596','#36d9e8'],
+    rootColor: '#f98080',
+    childColor: '#5ab5ff',
   },
 ]
 

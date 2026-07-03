@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Sidebar, CaretLeft, Graph, DotsThreeVertical, PencilSimple, Copy, Trash } from '@phosphor-icons/react'
 import type { AppTheme as Theme } from '../lib/themes'
-import { ACCENT, DANGER } from '../lib/tokens'
+import { ACCENT, DANGER, BLUR_STRONG } from '../lib/tokens'
 
 export interface Page {
   id: string
@@ -280,9 +280,10 @@ export const PagesPanel: React.FC<Props> = ({
         top: 52,
         width: 260,
         height: 'calc(100vh - 52px)',
-        background: theme.toolbarBg,
+        background: theme.panelBg,
         borderRight: `1px solid ${theme.border}`,
-        backdropFilter: 'blur(16px)',
+        backdropFilter: BLUR_STRONG,
+        WebkitBackdropFilter: BLUR_STRONG,
         zIndex: mobile ? 101 : 100,
         display: 'flex',
         flexDirection: 'column',

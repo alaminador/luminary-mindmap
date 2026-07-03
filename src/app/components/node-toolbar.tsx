@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Plus, Equals, PencilSimple, LinkSimple, Globe, X } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
+import { RADIUS_CARD, RADIUS_PILL, SHADOW_FLOATING, SHADOW_LG, BLUR_STRONG, FOCUS_RING_COLOR, FOCUS_RING_WIDTH, SPACE_1, SPACE_3, SPACE_6 } from '../lib/tokens'
 
 // 8 curated emojis for mind-mapping
 const EMOJIS = ['💡', '🎯', '🔥', '✅', '⚠️', '🚀', '💬', '🔗']
@@ -64,16 +65,16 @@ export const NodeToolbar = React.memo(function NodeToolbar({
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
+        gap: SPACE_1,
         background: t.toolbarBg,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: BLUR_STRONG,
+        WebkitBackdropFilter: BLUR_STRONG,
         border: `1px solid ${t.border}`,
-        borderRadius: 16,
-        padding: '4px 8px',
+        borderRadius: RADIUS_PILL,
+        padding: `${SPACE_3}px ${SPACE_6}px`,
         boxShadow: isDark
-          ? '0 4px 24px rgba(0,0,0,0.45)'
-          : '0 4px 20px rgba(0,0,0,0.10)',
+          ? SHADOW_LG
+          : SHADOW_FLOATING,
       }}>
         <NBtn onClick={onAddChild} title="Add child (Tab)" color={t.textPrimary} t={t}>
           <Plus size={14} weight="bold" />
@@ -421,11 +422,11 @@ const NBtn: React.FC<{
   children: React.ReactNode
 }> = ({ onClick, title, color, active, children }) => (
   <button
-    tabIndex={-1}
+    aria-label={title}
     onClick={e => { e.stopPropagation(); onClick() }}
     title={title}
     style={{
-      width: 32, height: 32, borderRadius: 10,
+      width: 32, height: 32, borderRadius: RADIUS_CARD,
       border: active ? `1.5px solid ${color}` : '1.5px solid transparent',
       background: active ? `${color}20` : 'transparent',
       cursor: 'pointer',
@@ -433,7 +434,10 @@ const NBtn: React.FC<{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transition: 'background 0.12s, border-color 0.12s',
       padding: 0,
+      outline: 'none',
     }}
+    onFocus={e => { e.currentTarget.style.boxShadow = `0 0 0 ${FOCUS_RING_WIDTH}px ${FOCUS_RING_COLOR}55`; }}
+    onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
     onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}60` }}
     onMouseLeave={e => { e.currentTarget.style.background = active ? `${color}20` : 'transparent'; e.currentTarget.style.borderColor = active ? color : 'transparent' }}
   >
