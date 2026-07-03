@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { Plus, Equals, PencilSimple, LinkSimple, Globe, X, CaretUp, CaretDown, Stack } from '@phosphor-icons/react'
 import type { AppTheme } from '../lib/themes'
-import type { Layer } from '../lib/mindmap'
 import { depthBand } from '../lib/mindmap'
 import { RADIUS_CARD, RADIUS_PILL, RADIUS_BASE, SHADOW_FLOATING, SHADOW_LG, BLUR_STRONG, FOCUS_RING_COLOR, FOCUS_RING_WIDTH, SPACE_1, SPACE_3, SPACE_5, SPACE_6, DEPTH_STEP, LABEL_SMALL, LABEL_MEDIUM } from '../lib/tokens'
 
@@ -18,7 +17,6 @@ interface Props {
   currentEmoji?: string
   currentUrl?: string
   currentZ?: number
-  layers?: Layer[]
   theme: AppTheme
   onAddChild: () => void
   onAddSibling: () => void
@@ -29,13 +27,12 @@ interface Props {
   onEmojiChange: (emoji: string | undefined) => void
   onUrlChange: (url: string | undefined) => void
   onNudgeDepth: (delta: number) => void
-  onSetLayer: (layerId: string | undefined) => void
 }
 
 export const NodeToolbar = React.memo(function NodeToolbar({
-  x, y, isRoot, linkingMode, currentColorIndex, currentEmoji, currentUrl, currentZ, layers, theme: t,
+  x, y, isRoot, linkingMode, currentColorIndex, currentEmoji, currentUrl, currentZ, theme: t,
   onAddChild, onAddSibling, onEditTitle, onDrawLink, onDelete,
-  onColorChange, onEmojiChange, onUrlChange, onNudgeDepth, onSetLayer,
+  onColorChange, onEmojiChange, onUrlChange, onNudgeDepth,
 }: Props) {
   // Resolve current color from theme palette using the stored index
   const currentColor = currentColorIndex !== undefined ? t.palette[currentColorIndex] : undefined
@@ -167,14 +164,12 @@ export const NodeToolbar = React.memo(function NodeToolbar({
         )}
       </div>
 
-      {/* ── depth / layer panel ── */}
+      {/* ── depth panel ── */}
       {panel === 'depth' && (
         <DepthPanel
           theme={t}
           currentZ={currentZ ?? 0}
-          layers={layers ?? []}
           onNudge={onNudgeDepth}
-          onSetLayer={onSetLayer}
         />
       )}
 
@@ -471,10 +466,8 @@ const NBtn: React.FC<{
 const DepthPanel: React.FC<{
   theme: AppTheme
   currentZ: number
-  layers: Layer[]
   onNudge: (delta: number) => void
-  onSetLayer: (layerId: string | undefined) => void
-}> = ({ theme: t, currentZ, layers, onNudge, onSetLayer }) => {
+}> = ({ theme: t, currentZ, onNudge }) => {
   const band = depthBand(currentZ)
   return (
     <div style={{
@@ -528,35 +521,6 @@ const DepthPanel: React.FC<{
           <CaretUp size={14} weight="bold" />
         </button>
       </div>
-      {layers.length > 0 && (
-        <>
-          <div style={{ height: 1, background: t.border }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: LABEL_SMALL.size, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Layer
-            </span>
-            {layers.map(layer => (
-              <button
-                key={layer.id}
-                onClick={() => onSetLayer(layer.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: SPACE_5,
-                  padding: `${SPACE_3}px ${SPACE_5}px`,
-                  borderRadius: RADIUS_BASE, border: 'none',
-                  background: Math.abs(currentZ - layer.z) < 10 ? `${t.rootColor}18` : 'transparent',
-                  cursor: 'pointer',
-                  color: t.textPrimary, fontSize: LABEL_MEDIUM.size, fontWeight: Math.abs(currentZ - layer.z) < 10 ? 600 : 400,
-                  fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: 12, width: 16 }}>{layer.name.charAt(0)}</span>
-                <span>{layer.name}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }

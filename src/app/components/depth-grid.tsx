@@ -1,17 +1,14 @@
 import React, { useRef, useEffect } from 'react'
 import type { Camera } from '../lib/projection'
-import type { Layer } from '../lib/mindmap'
 
 interface Props {
   camera: Camera
   viewport: { width: number; height: number }
   isDark: boolean
   dotColor: string
-  layers?: Layer[]
-  showPlaneGuides?: boolean
 }
 
-export const DepthGrid = React.memo(function DepthGrid({ camera, viewport, isDark, dotColor, layers = [], showPlaneGuides = true }: Props) {
+export const DepthGrid = React.memo(function DepthGrid({ camera, viewport, isDark, dotColor }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -70,34 +67,7 @@ export const DepthGrid = React.memo(function DepthGrid({ camera, viewport, isDar
       ctx.stroke()
     }
 
-    // Plane guides — draw a faint horizontal shelf line per layer's z-depth
-    if (showPlaneGuides && layers.length > 0) {
-      const fov = camera.perspective
-      layers.forEach(layer => {
-        // Project layer z to screen y-offset: deeper z → closer to vanishing point
-        const d = fov + camera.panZ + layer.z
-        if (d <= 0) return
-        const scale = fov / d
-        const layerY = (layer.z * scale) + height / 2 + camera.panY * scale
-        if (layerY < 0 || layerY > height) return
-
-        const planeAlpha = isDark ? 0.06 : 0.08
-        ctx.beginPath()
-        ctx.moveTo(0, layerY)
-        ctx.lineTo(width, layerY)
-        ctx.strokeStyle = `rgba(${r},${g},${b},${planeAlpha})`
-        ctx.lineWidth = 1
-        ctx.setLineDash([4, 8])
-        ctx.stroke()
-        ctx.setLineDash([])
-
-        // Label
-        ctx.font = "500 10px 'Plus Jakarta Sans', Inter, sans-serif"
-        ctx.fillStyle = `rgba(${r},${g},${b},${planeAlpha + 0.1})`
-        ctx.fillText(layer.name, 8, layerY - 4)
-      })
-    }
-  }, [camera.panX, camera.panY, camera.panZ, viewport.width, viewport.height, isDark, dotColor, layers, showPlaneGuides])
+  }, [camera.panX, camera.panY, camera.panZ, viewport.width, viewport.height, isDark, dotColor])
 
   return (
     <canvas

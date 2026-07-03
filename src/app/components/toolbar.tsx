@@ -7,7 +7,6 @@ import {
   Palette,
   Sun,
   Moon,
-  PresentationChart,
   UploadSimple,
   DownloadSimple,
   FileText,
@@ -46,7 +45,6 @@ interface Props {
   onExportMarkdown: () => void
   onExportBackup: () => void
   onToggleDark: () => void
-  onTogglePresent: () => void
   onOpenThemes: () => void
   onSpaceOut: () => void
   onToggleOrbit: () => void
@@ -177,7 +175,7 @@ export const Toolbar: React.FC<Props> = ({
   zoom, theme, bp,
   onZoomIn, onZoomOut, onReset, onFitScreen,
   onClear, onImport, onImportBackup, onExportPng, onExportMarkdown, onExportBackup,
-  onToggleDark, onTogglePresent, onOpenThemes, onSpaceOut, onToggleOrbit, orbitMode,
+  onToggleDark, onOpenThemes, onSpaceOut, onToggleOrbit, orbitMode,
 }) => {
   const fileRef = useRef<HTMLInputElement>(null)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -336,9 +334,6 @@ export const Toolbar: React.FC<Props> = ({
           </TBtn>
           {!compact && (
             <>
-              <TBtn onClick={onTogglePresent} label="Presentation mode  (P)" theme={t}>
-                <PresentationChart {...iconProps} />
-              </TBtn>
               <TBtn onClick={onToggleOrbit} label={orbitMode ? 'Orbit mode on  (I)' : 'Orbit mode  (I — reveals depth)'} theme={t} active={orbitMode}>
                 <Globe {...iconProps} />
               </TBtn>
@@ -401,9 +396,6 @@ export const Toolbar: React.FC<Props> = ({
                   </OBtn>
                   <OBtn onClick={() => { setMoreOpen(false); onFitScreen() }} theme={t}>
                     <CornersOut size={13} /> Fit to screen
-                  </OBtn>
-                  <OBtn onClick={() => { setMoreOpen(false); onTogglePresent() }} theme={t}>
-                    <PresentationChart size={13} /> Presentation mode
                   </OBtn>
                   <OBtn onClick={() => { setMoreOpen(false); onSpaceOut() }} theme={t}>
                     <CirclesFour size={13} /> Space out

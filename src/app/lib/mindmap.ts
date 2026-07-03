@@ -20,26 +20,10 @@ export interface MindNode {
   /** External URL link attached to the card */
   url?: string
   collapsed?: boolean
-  /** Optional layer assignment — node sits on this named z-plane */
-  layerId?: string
   x: number
   y: number
   z: number
 }
-
-// ── Layers ──────────────────────────────────────────────────────────────────
-export interface Layer {
-  id: string
-  name: string
-  z: number
-  color?: string
-}
-
-export const DEFAULT_LAYERS: Layer[] = [
-  { id: 'l-front',  name: 'Front',  z: 120 },
-  { id: 'l-mid',    name: 'Mid',    z: 0 },
-  { id: 'l-back',   name: 'Back',   z: -120 },
-]
 
 /** Returns a human-readable depth band label for a given z value */
 export function depthBand(z: number): string {
@@ -116,7 +100,7 @@ export function addChildAt(nodes: MindNode[], parentId: string, id: string, x: n
   if (!parent) return nodes
   const ang  = Math.atan2(y - parent.y, x - parent.x)
   const zOff = Math.sin(ang * 2) * 100
-  return [...nodes, { id, parentId, title: '', colorIndex: parent.colorIndex, layerId: parent.layerId, x, y, z: parent.z + zOff }]
+  return [...nodes, { id, parentId, title: '', colorIndex: parent.colorIndex, x, y, z: parent.z + zOff }]
 }
 
 export function addChild(nodes: MindNode[], parentId: string, id: string): MindNode[] {
@@ -135,8 +119,6 @@ export function addChild(nodes: MindNode[], parentId: string, id: string): MindN
       id, parentId,
       title: '',
       colorIndex: parent.colorIndex,
-      // Inherit parent's layer so child stays on the same z-plane
-      layerId: parent.layerId,
       x: parent.x + Math.cos(ang) * r,
       y: parent.y + Math.sin(ang) * r,
       z: parent.z + zOff,

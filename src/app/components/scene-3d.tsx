@@ -1,9 +1,9 @@
 import React, {
   useRef, useState, useEffect, useCallback, useReducer, useMemo,
 } from 'react'
-import { X, Check, ArrowUp } from '@phosphor-icons/react'
-import type { MindNode, NodeLink, Layer } from '../lib/mindmap'
-import { blankCanvas, addChild, addChildAt, addSibling, collectDescendants, computeDistanceMap, getVisibleNodeIds, nextId, autoLayout, exportMarkdown, parseOutlineToNodes, DEFAULT_LAYERS } from '../lib/mindmap'
+import { Check, ArrowUp } from '@phosphor-icons/react'
+import type { MindNode, NodeLink } from '../lib/mindmap'
+import { blankCanvas, addChild, addChildAt, addSibling, collectDescendants, computeDistanceMap, getVisibleNodeIds, nextId, autoLayout, exportMarkdown, parseOutlineToNodes } from '../lib/mindmap'
 import { playCreate, playDelete } from '../lib/sounds'
 import type { Camera } from '../lib/projection'
 import { project } from '../lib/projection'
@@ -21,9 +21,6 @@ import { SearchBar } from './search-bar'
 import { ThemePicker } from './theme-picker'
 import { Minimap } from './minimap'
 import { PagesPanel } from './pages-panel'
-import { LayerRail } from './layer-rail'
-import { PresentPanel } from './present-panel'
-import type { PresentStop } from './present-panel'
 import type { Page } from './pages-panel'
 
 const DEFAULT_CAMERA: Camera = {
@@ -80,15 +77,12 @@ function loadPages(): { pages: Page[]; activeId: string } {
   try {
     const raw = localStorage.getItem(PAGES_KEY)
     if (raw) {
-      const pages = JSON.parse(raw) as (Page & { nodes?: MindNode[]; links?: NodeLink[]; layers?: Layer[] })[]
+      const pages = JSON.parse(raw) as (Page & { nodes?: MindNode[]; links?: NodeLink[] })[]
       if (Array.isArray(pages) && pages.length > 0) {
         // Strip ghost nodes — empty-titled non-root nodes that were never given a name
-        // Add default layers to any page missing them
         pages.forEach(p => {
           if (Array.isArray(p.nodes))
             p.nodes = (p.nodes as MindNode[]).filter((n: MindNode) => n.id === 'root' || n.title.trim() !== '')
-          if (!Array.isArray(p.layers) || p.layers.length === 0)
-            p.layers = DEFAULT_LAYERS
         })
         const activeId = localStorage.getItem(ACTIVE_PAGE_KEY) ?? pages[0].id
         return { pages, activeId: pages.find(p => p.id === activeId) ? activeId : pages[0].id }
@@ -108,18 +102,18 @@ function loadPages(): { pages: Page[]; activeId: string } {
     if (rawLinks) links = JSON.parse(rawLinks) as NodeLink[]
   } catch (_) {}
 
-  const firstPage: Page & { nodes: MindNode[]; links: NodeLink[]; layers: Layer[] } = {
-    id: makePageId(), name: 'Page 1', nodes, links, layers: DEFAULT_LAYERS,
+  const firstPage: Page & { nodes: MindNode[]; links: NodeLink[] } = {
+    id: makePageId(), name: 'Page 1', nodes, links,
   }
   return { pages: [firstPage], activeId: firstPage.id }
 }
 
-function getPageData(pages: PageData[], id: string): { nodes: MindNode[]; links: NodeLink[]; layers: Layer[] } {
+function getPageData(pages: PageData[], id: string): { nodes: MindNode[]; links: NodeLink[] } {
   const p = pages.find(p => p.id === id)
-  return { nodes: p?.nodes ?? blankCanvas, links: p?.links ?? [], layers: p?.layers ?? DEFAULT_LAYERS }
+  return { nodes: p?.nodes ?? blankCanvas, links: p?.links ?? [] }
 }
 
-type PageData = Page & { nodes: MindNode[]; links: NodeLink[]; layers?: Layer[] }
+type PageData = Page & { nodes: MindNode[]; links: NodeLink[] }
 
 type EditingField = 'title' | 'description' | null
 
@@ -129,7 +123,6 @@ interface State {
   editingId: string | null
   editingField: EditingField
   links: NodeLink[]
-  layers: Layer[]
 }
 
 type Action =
@@ -149,8 +142,6 @@ type Action =
   | { type: 'UPDATE_IMAGE'; id: string; image: string | undefined }
   | { type: 'UPDATE_URL'; id: string; url: string | undefined }
   | { type: 'UPDATE_Z'; id: string; z: number }
-  | { type: 'UPDATE_LAYER'; id: string; layerId: string | undefined }
-  | { type: 'SET_LAYERS'; layers: Layer[] }
   | { type: 'TOGGLE_COLLAPSE'; id: string }
   | { type: 'MOVE_NODES'; deltas: { id: string; dx: number; dy: number; dz: number }[] }
   | { type: 'ADD_LINK'; link: NodeLink }
@@ -222,15 +213,6 @@ function reducer(state: State, action: Action): State {
       )
       return { ...state, nodes }
     }
-    case 'UPDATE_LAYER': {
-      const nodes = state.nodes.map(n =>
-        n.id === action.id ? { ...n, layerId: action.layerId } : n
-      )
-      return { ...state, nodes }
-    }
-    case 'SET_LAYERS': {
-      return { ...state, layers: action.layers }
-    }
     case 'TOGGLE_COLLAPSE': {
       const nodes = state.nodes.map(n =>
         n.id === action.id ? { ...n, collapsed: !n.collapsed } : n
@@ -271,7 +253,7 @@ export const Scene3D: React.FC = () => {
     return { pages: pages as PageData[], activeId }
   })
 
-  const { nodes: initialNodes, links: initialLinks, layers: initialLayers } = getPageData(pagesState.pages, pagesState.activeId)
+  const { nodes: initialNodes, links: initialLinks } = getPageData(pagesState.pages, pagesState.activeId)
 
   const [state, dispatch] = useReducer(reducer, {
     nodes: initialNodes,
@@ -279,7 +261,6 @@ export const Scene3D: React.FC = () => {
     editingId: null,
     editingField: null,
     links: initialLinks,
-    layers: initialLayers,
   })
 
   const pagesStateRef = useRef(pagesState)
@@ -338,12 +319,6 @@ export const Scene3D: React.FC = () => {
   const [linkingFromId, setLinkingFromId] = useState<string | null>(null)
   const linkingFromIdRef = useRef<string | null>(null)
 
-  // Presentation mode
-  const [presentMode, setPresentMode] = useState(false)
-  // Cinematic presentation with stop-based path
-  const [cinematicStops, setCinematicStops] = useState<PresentStop[]>([])
-  const [presentPanelOpen, setPresentPanelOpen] = useState(false)
-
   const containerRef = useRef<HTMLDivElement>(null)
   const cameraRef = useRef(camera)
   cameraRef.current = camera
@@ -351,8 +326,6 @@ export const Scene3D: React.FC = () => {
   stateRef.current = state
   const viewportRef = useRef(viewport)
   viewportRef.current = viewport
-  const presentModeRef = useRef(presentMode)
-  presentModeRef.current = presentMode
   const searchActiveRef = useRef(searchActive)
   searchActiveRef.current = searchActive
 
@@ -457,11 +430,11 @@ export const Scene3D: React.FC = () => {
   const firstSaveRef = useRef(true)
   const firstRunSwoopDoneRef = useRef(false)
 
-  // Auto-save current page nodes/links/layers into the pages array, then persist
+  // Auto-save current page nodes/links into the pages array, then persist
   useEffect(() => {
     setPagesState(prev => {
       const pages = prev.pages.map(p =>
-        p.id === prev.activeId ? { ...p, nodes: state.nodes, links: state.links, layers: state.layers } : p
+        p.id === prev.activeId ? { ...p, nodes: state.nodes, links: state.links } : p
       )
       try { localStorage.setItem(PAGES_KEY, JSON.stringify(pages)) } catch (_) {}
       return { ...prev, pages }
@@ -568,7 +541,7 @@ export const Scene3D: React.FC = () => {
     let rafId: number
     const tick = () => {
       const idle = performance.now() - lastActivityRef.current
-      if (idle > 10000 && !dragState.current && !focusAnimRef.current && !presentModeRef.current) {
+      if (idle > 10000 && !dragState.current && !focusAnimRef.current) {
         const t = performance.now() / 1000
         const driftY = Math.sin(t * 0.32) * 0.045 * driftAmp
         const driftX = Math.cos(t * 0.21) * 0.030 * driftAmp
@@ -675,135 +648,6 @@ export const Scene3D: React.FC = () => {
 
   const fitToSelectionRef = useRef(fitToSelection)
   fitToSelectionRef.current = fitToSelection
-
-  // Presentation mode — opens the cinematic path editor
-  const enterPresentation = useCallback(() => {
-    setPresentPanelOpen(true)
-  }, [])
-
-  const exitPresentation = useCallback(() => {
-    setPresentMode(false)
-    setPresentPanelOpen(false)
-    if (focusAnimRef.current) { cancelAnimationFrame(focusAnimRef.current.rafId); focusAnimRef.current = null }
-    // Exit fullscreen
-    if (document.fullscreenElement && document.exitFullscreen) {
-      document.exitFullscreen().catch(() => {})
-    }
-  }, [])
-
-  // ── Cinematic play ──────────────────────────────────────────────────────
-  // Flies the camera through a sequence of stops with dolly-through arcs.
-  // Each stop can target a node, layer, or overview. Between stops, the
-  // camera passes through intermediate depth (fog thickens then clears).
-  const playCinematic = useCallback((stops: PresentStop[]) => {
-    if (stops.length === 0) return
-    if (focusAnimRef.current) { cancelAnimationFrame(focusAnimRef.current.rafId); focusAnimRef.current = null }
-
-    // Request fullscreen for stage discipline
-    try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {})
-      }
-    } catch (_) {}
-
-    setPresentMode(true)
-
-    let stopIdx = 0
-    const flyToStop = () => {
-      if (stopIdx >= stops.length) {
-        // End of path — exit cinematic mode
-        exitPresentationRef.current()
-        return
-      }
-      const stop = stops[stopIdx]
-      const nodes = stateRef.current.nodes
-      const layers = stateRef.current.layers
-
-      let targetX = 0, targetY = 0, targetZ = 80
-      let targetZoom = stop.zoom
-
-      if (stop.type === 'node') {
-        const node = nodes.find(n => n.id === stop.targetId)
-        if (node) {
-          targetX = -node.x * cameraRef.current.zoom
-          targetY = -node.y * cameraRef.current.zoom
-          targetZ = -node.z + 80
-          dispatch({ type: 'SELECT', ids: [node.id] })
-        }
-      } else if (stop.type === 'layer') {
-        const layer = layers.find(l => l.id === stop.targetId)
-        if (layer) {
-          targetZ = -layer.z + 80
-          // Keep current panX/panY, just dolly z
-          targetX = cameraRef.current.panX
-          targetY = cameraRef.current.panY
-        }
-      } else {
-        // Overview — reset to see all
-        targetX = 0; targetY = 0; targetZ = 80
-        targetZoom = stop.zoom
-        dispatch({ type: 'SELECT', ids: [] })
-      }
-
-      // Animate with dolly-through arc
-      // Add a slight z-overshoot for cinematic feel
-      const DURATION = reducedMotionRef.current ? 200 : 1200
-      const startTime = performance.now()
-      const startX = cameraRef.current.panX
-      const startY = cameraRef.current.panY
-      const startZ = cameraRef.current.panZ
-      const startZoom = cameraRef.current.zoom
-      // Dolly-through: overshoot z halfway, then settle
-      const midZ = (startZ + targetZ) / 2 - 120
-
-      const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - startTime) / DURATION)
-        const e = easeInOutCubic(t)
-        // Use a slight arc for z (go deeper then come back)
-        let zVal: number
-        if (t < 0.5) {
-          // First half: arc through midZ
-          const halfT = t * 2
-          const halfE = easeInOutCubic(halfT)
-          zVal = startZ + (midZ - startZ) * halfE
-        } else {
-          // Second half: settle to target
-          const halfT = (t - 0.5) * 2
-          const halfE = easeInOutCubic(halfT)
-          zVal = midZ + (targetZ - midZ) * halfE
-        }
-
-        setCamera(c => ({
-          ...c,
-          panX: startX + (targetX - startX) * e,
-          panY: startY + (targetY - startY) * e,
-          panZ: zVal,
-          zoom: startZoom + (targetZoom - startZoom) * e,
-        }))
-
-        if (t < 1) {
-          focusAnimRef.current = { ...focusAnimRef.current!, rafId: requestAnimationFrame(tick) }
-        } else {
-          // Stop reached — either auto-advance after dwell or wait for manual nav
-          if (stop.dwell > 0 && stopIdx < stops.length - 1) {
-            setTimeout(() => {
-              stopIdx++
-              flyToStop()
-            }, stop.dwell * 1000)
-          }
-        }
-      }
-
-      focusAnimRef.current = { rafId: requestAnimationFrame(tick), targetPanX: targetX, targetPanY: targetY, targetPanZ: targetZ }
-    }
-
-    // Start the first stop
-    flyToStop()
-  }, [])
-
-  const playCinematicRef = useRef(playCinematic); playCinematicRef.current = playCinematic
 
   // PNG export
   const exportPng = useCallback(async () => {
@@ -1435,12 +1279,6 @@ export const Scene3D: React.FC = () => {
 
       if (s.editingId) return
 
-      // Cinematic presentation: ESC exits, space/arrows advance manually
-      if (presentModeRef.current) {
-        if (e.key === 'Escape') { exitPresentationRef.current(); return }
-        return
-      }
-
       const sel = s.selectedIds[0]
 
       // Arrow key navigation
@@ -1547,8 +1385,6 @@ export const Scene3D: React.FC = () => {
         fitToSelectionRef.current()
       } else if (e.key === 'o' || e.key === 'O') {
         handleSpaceOutRef.current()
-      } else if (e.key === 'p' || e.key === 'P') {
-        enterPresentationRef.current()
       } else if (e.key === 'e' || e.key === 'E') {
         // Emoji picking now handled via node toolbar
       } else if (e.key === 'i' || e.key === 'I') {
@@ -1596,11 +1432,6 @@ export const Scene3D: React.FC = () => {
   // Stable refs for functions used inside stable keyboard handler
   const trackNewNodeRef = useRef(trackNewNode)
   trackNewNodeRef.current = trackNewNode
-  const enterPresentationRef = useRef(enterPresentation)
-  enterPresentationRef.current = enterPresentation
-  const exitPresentationRef = useRef(exitPresentation)
-  exitPresentationRef.current = exitPresentation
-
 
   // ── Pages handlers ────────────────────────────────────────────────────────────
 
@@ -1609,7 +1440,7 @@ export const Scene3D: React.FC = () => {
     // Save current page state into pages array first (sync)
     const currentId = pagesStateRef.current.activeId
     const updatedPages = pagesStateRef.current.pages.map(p =>
-      p.id === currentId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links, layers: stateRef.current.layers } : p
+      p.id === currentId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links } : p
     )
     const target = updatedPages.find(p => p.id === id)
     if (!target) return
@@ -1617,7 +1448,6 @@ export const Scene3D: React.FC = () => {
     setPagesState({ pages: updatedPages, activeId: id })
     dispatch({ type: 'SET_NODES', nodes: target.nodes ?? blankCanvas })
     dispatch({ type: 'SET_LINKS', links: target.links ?? [] })
-    dispatch({ type: 'SET_LAYERS', layers: target.layers ?? DEFAULT_LAYERS })
     dispatch({ type: 'SELECT', ids: [] })
     stashPageHistory(currentId)
     restorePageHistory(id)
@@ -1634,7 +1464,6 @@ export const Scene3D: React.FC = () => {
       name: `Page ${pagesStateRef.current.pages.length + 1}`,
       nodes: [{ id: 'root', parentId: null, title: 'Main Topic', x: 0, y: 0, z: 0 }],
       links: [],
-      layers: DEFAULT_LAYERS,
     }
     // Save current page first
     const currentId = pagesStateRef.current.activeId
@@ -1674,7 +1503,6 @@ export const Scene3D: React.FC = () => {
       nextActiveId = remaining[Math.max(0, idx - 1)].id
       const target = remaining.find(p => p.id === nextActiveId)!
       dispatch({ type: 'SET_NODES', nodes: target.nodes ?? blankCanvas })
-      dispatch({ type: 'SET_LAYERS', layers: target.layers ?? DEFAULT_LAYERS })
       dispatch({ type: 'SELECT', ids: [] })
       restorePageHistory(nextActiveId)
       targetZoomRef.current = DEFAULT_CAMERA.zoom
@@ -1688,7 +1516,7 @@ export const Scene3D: React.FC = () => {
     const { pages, activeId } = pagesStateRef.current
     // Save current page first
     const updatedPages = pages.map(p =>
-      p.id === activeId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links, layers: stateRef.current.layers } : p
+      p.id === activeId ? { ...p, nodes: stateRef.current.nodes, links: stateRef.current.links } : p
     )
     const source = updatedPages.find(p => p.id === id)
     if (!source) return
@@ -1698,7 +1526,6 @@ export const Scene3D: React.FC = () => {
       name: `${source.name} copy`,
       nodes: source.nodes.map((n: MindNode) => ({ ...n })),
       links: source.links.map((l: NodeLink) => ({ ...l })),
-      layers: (source.layers ?? DEFAULT_LAYERS).map(l => ({ ...l })),
     }
     const insertIdx = updatedPages.findIndex(p => p.id === id) + 1
     const withNew = [...updatedPages.slice(0, insertIdx), newPage, ...updatedPages.slice(insertIdx)]
@@ -1826,61 +1653,6 @@ export const Scene3D: React.FC = () => {
   const handleSpaceOutRef = useRef(handleSpaceOut)
   handleSpaceOutRef.current = handleSpaceOut
   const showUndoToastRef = useRef<(() => void) | null>(null)
-
-  // ── Layer handlers ──────────────────────────────────────────────────────
-  const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
-
-  const handleLayerAdd = useCallback(() => {
-    const id = nextId()
-    const layers = state.layers
-    const maxZ = layers.length > 0 ? Math.max(...layers.map(l => l.z)) : -120
-    const newLayer: Layer = { id, name: `Layer ${layers.length + 1}`, z: maxZ + 120 }
-    dispatch({ type: 'SET_LAYERS', layers: [...layers, newLayer] })
-    setActiveLayerId(id)
-  }, [])
-
-  const handleLayerRename = useCallback((id: string, name: string) => {
-    const layers = state.layers.map(l => l.id === id ? { ...l, name } : l)
-    dispatch({ type: 'SET_LAYERS', layers })
-  }, [])
-
-  const handleLayerDelete = useCallback((id: string) => {
-    if (state.layers.length <= 1) return
-    const layers = state.layers.filter(l => l.id !== id)
-    // Remove layerId from nodes that were on this layer
-    const nodes = state.nodes.map(n => n.layerId === id ? { ...n, layerId: undefined } : n)
-    dispatch({ type: 'SET_LAYERS', layers })
-    if (activeLayerId === id) setActiveLayerId(null)
-    // Also update nodes if needed
-    dispatch({ type: 'SET_NODES', nodes })
-  }, [activeLayerId])
-
-  const handleLayerReorder = useCallback((layers: Layer[]) => {
-    dispatch({ type: 'SET_LAYERS', layers })
-  }, [])
-
-  const handleLayerSelect = useCallback((layerId: string) => {
-    setActiveLayerId(layerId)
-    const layer = stateRef.current.layers.find(l => l.id === layerId)
-    if (layer) {
-      // Dolly camera to this layer's z-plane
-      animateFocusRef.current(
-        cameraRef.current.panX,
-        cameraRef.current.panY,
-        -layer.z + 80
-      )
-    }
-  }, [])
-
-  const handleAssignNodeToLayer = useCallback((layerId: string) => {
-    const sel = state.selectedIds[0]
-    if (!sel) return
-    const layer = state.layers.find(l => l.id === layerId)
-    if (!layer) return
-    pushHistory()
-    dispatch({ type: 'UPDATE_LAYER', id: sel, layerId })
-    dispatch({ type: 'UPDATE_Z', id: sel, z: layer.z })
-  }, [pushHistory])
 
   const handleClear = useCallback(() => {
     if (!window.confirm('Clear all nodes and start fresh?')) return
@@ -2047,11 +1819,7 @@ export const Scene3D: React.FC = () => {
   // Compute visible nodes (respects collapsed) — memoized
   const visibleNodeIds = useMemo(() => getVisibleNodeIds(state.nodes), [state.nodes])
 
-  // Determine effective selected IDs (presentation mode overrides) — memoized
-  const effectiveSelectedIds = useMemo(
-    () => state.selectedIds,
-    [state.selectedIds],
-  )
+  const effectiveSelectedIds = state.selectedIds
 
   // Distance map: BFS from selected nodes through the tree — memoized
   // When nothing is selected fall back to root so the default view always shows
@@ -2063,21 +1831,6 @@ export const Scene3D: React.FC = () => {
     ),
     [state.nodes, effectiveSelectedIds],
   )
-
-  // Spotlight position for presentation mode — tracks focused node in real-time
-  const spotlightPos = useMemo(() => {
-    if (!presentMode) return null
-    const selId = effectiveSelectedIds[0]
-    if (!selId) return null
-    const node = state.nodes.find(n => n.id === selId)
-    if (!node) return null
-    const p = project(node, camera, viewport)
-    if (!p.visible) return null
-    const rect = nodeRects.get(selId) ?? { width: 160, height: 56 }
-    const rw = (rect.width + 100) * p.scale
-    const rh = (rect.height + 100) * p.scale
-    return { x: p.x, y: p.y, rw, rh }
-  }, [presentMode, effectiveSelectedIds, state.nodes, camera, viewport, nodeRects])
 
   // NodeToolbar position — project selected node to screen
   const nodeToolbarPos = useMemo(() => {
@@ -2272,9 +2025,7 @@ export const Scene3D: React.FC = () => {
             zFocus={
               effectiveSelectedIds.length > 0
                 ? state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z
-                : activeLayerId
-                  ? state.layers.find(l => l.id === activeLayerId)?.z
-                  : undefined
+                : undefined
             }
             onPointerDown={handleNodePointerDown}
             onAddChild={handleAddChild}
@@ -2337,14 +2088,12 @@ export const Scene3D: React.FC = () => {
         }} />
       )}
 
-      {/* Depth grid with layer plane guides */}
+      {/* Depth grid */}
       <DepthGrid
         camera={camera}
         viewport={viewport}
         isDark={isDark}
         dotColor={activeTheme.dotColor}
-        layers={state.layers}
-        showPlaneGuides={state.layers.length > 1}
       />
 
       {/* Vignette — softer, Notion-style */}
@@ -2387,21 +2136,8 @@ export const Scene3D: React.FC = () => {
         />
       )}
 
-      {/* Presentation spotlight — dark vignette with transparent hole over focused node */}
-      {presentMode && spotlightPos && (
-        <div
-          style={{
-            position: 'absolute', inset: 0,
-            zIndex: 8, pointerEvents: 'none',
-            backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.55)',
-            WebkitMaskImage: `radial-gradient(ellipse ${spotlightPos.rw}px ${spotlightPos.rh}px at ${spotlightPos.x}px ${spotlightPos.y}px, transparent 35%, black 80%)`,
-            maskImage: `radial-gradient(ellipse ${spotlightPos.rw}px ${spotlightPos.rh}px at ${spotlightPos.x}px ${spotlightPos.y}px, transparent 35%, black 80%)`,
-          }}
-        />
-      )}
-
       {/* Floating node toolbar */}
-      {nodeToolbarPos && !state.editingId && effectiveSelectedIds.length === 1 && !presentMode && (
+      {nodeToolbarPos && !state.editingId && effectiveSelectedIds.length === 1 && (
         <NodeToolbar
           x={nodeToolbarPos.x}
           y={nodeToolbarPos.y}
@@ -2426,13 +2162,11 @@ export const Scene3D: React.FC = () => {
           onUrlChange={(url) => handleUrlChange(effectiveSelectedIds[0], url)}
           onNudgeDepth={(delta) => handleNudgeDepth(effectiveSelectedIds[0], delta)}
           currentZ={state.nodes.find(n => n.id === effectiveSelectedIds[0])?.z}
-          layers={state.layers}
-          onSetLayer={(layerId) => dispatch({ type: 'UPDATE_LAYER', id: effectiveSelectedIds[0], layerId })}
         />
       )}
 
       {/* Breadcrumb trail */}
-      {effectiveSelectedIds.length === 1 && !presentMode && (
+      {effectiveSelectedIds.length === 1 && (
         <Breadcrumb
           nodes={state.nodes}
           selectedId={effectiveSelectedIds[0]}
@@ -2451,21 +2185,6 @@ export const Scene3D: React.FC = () => {
       />}
       <ShortcutsPanel theme={activeTheme} suppressed={showThemePicker} />
 
-      {/* Layer rail — right edge, shows depth layers front-to-back */}
-      {!presentMode && (
-        <LayerRail
-          theme={activeTheme}
-          layers={state.layers}
-          activeLayerId={activeLayerId}
-          onSelect={handleLayerSelect}
-          onAdd={handleLayerAdd}
-          onRename={handleLayerRename}
-          onDelete={handleLayerDelete}
-          onReorder={handleLayerReorder}
-          onAssignNode={handleAssignNodeToLayer}
-        />
-      )}
-
       {/* Search bar */}
       {searchActive && (
         <SearchBar
@@ -2476,49 +2195,6 @@ export const Scene3D: React.FC = () => {
           crossPageResults={crossPageResults}
           onCrossPageSelect={handleCrossPageSelect}
         />
-      )}
-
-      {/* Presentation path editor (cinematic mode) */}
-      {presentPanelOpen && !presentMode && (
-        <PresentPanel
-          theme={activeTheme}
-          nodes={state.nodes}
-          layers={state.layers}
-          stops={cinematicStops}
-          onStopsChange={setCinematicStops}
-          onPlay={() => playCinematicRef.current(cinematicStops)}
-          onStop={() => setPresentPanelOpen(false)}
-        />
-      )}
-
-      {/* Cinematic playback overlay — minimal chrome while playing */}
-      {presentMode && (
-        <div style={{
-          position: 'absolute', bottom: 20, left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 300,
-          display: 'flex', alignItems: 'center', gap: 12,
-          background: activeTheme.toolbarBg,
-          backdropFilter: 'blur(12px)',
-          border: `1px solid ${activeTheme.border}`,
-          borderRadius: 16, padding: '8px 16px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-          fontFamily: 'Plus Jakarta Sans, sans-serif',
-        }}>
-          <button
-            onClick={exitPresentation}
-            style={{
-              width: 20, height: 20, borderRadius: 4, border: 'none',
-              background: 'transparent', cursor: 'pointer',
-              color: activeTheme.textMuted,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: 0,
-            }}
-          >
-            <X size={10} weight="bold" />
-          </button>
-          <span style={{ fontSize: 11, color: activeTheme.textMuted, fontWeight: 500 }}>ESC to exit</span>
-        </div>
       )}
 
       {/* Autosave indicator */}
@@ -2605,7 +2281,6 @@ export const Scene3D: React.FC = () => {
         if (isDark) setThemeId(LIGHT_THEMES[0].id)
         else setThemeId(DARK_THEMES[0].id)
       }}
-      onTogglePresent={enterPresentation}
       onOpenThemes={() => setShowThemePicker(true)}
       onSpaceOut={handleSpaceOut}
       onToggleOrbit={() => setOrbitMode(v => !v)}

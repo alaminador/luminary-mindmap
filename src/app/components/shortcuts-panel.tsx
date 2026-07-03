@@ -25,7 +25,6 @@ const GROUPS = [
       { key: 'F',          label: 'Fit to screen' },
       { key: 'S',          label: 'Fit selection' },
       { key: 'O',          label: 'Space out (auto-arrange)' },
-      { key: 'P',          label: 'Presentation mode' },
       { key: '⌘F',        label: 'Search' },
     ],
   },
