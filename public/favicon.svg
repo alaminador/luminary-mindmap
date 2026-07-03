@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32">
+  <!-- dark background so white gradient end stays visible -->
+  <rect width="32" height="32" rx="7" ry="7" fill="#1c1917"/>
+  <!-- Asset 1 icon nested at full fidelity, padded to 4px inset -->
+  <svg x="2" y="3" width="28" height="22" viewBox="0 0 123.9 95.31">
+    <defs>
+      <linearGradient id="a" x1="28.41" y1="-9.68" x2="100.81" y2="69.42" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#fc5716"/>
+        <stop offset="1" stop-color="#fff"/>
+      </linearGradient>
+      <linearGradient id="b" x1="34.1" y1="51.18" x2="94.22" y2="116.86" xlink:href="#a"/>
+    </defs>
+    <rect x="54.17" y="47.24" width="15.56" height="23.48" fill="#aaa"/>
+    <rect width="123.9" height="53.93" rx="7.81" ry="7.81" fill="url(#a)"/>
+    <rect y="67.91" width="123.9" height="27.4" rx="8.14" ry="8.14" fill="url(#b)"/>
+  </svg>
+</svg>

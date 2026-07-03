@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 703.02 154">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#linear-gradient-2);
+      }
+
+      .cls-2 {
+        font-family: GoogleSansFlex-Regular, 'Google Sans Flex';
+        font-size: 132.7px;
+      }
+
+      .cls-3 {
+        fill: url(#linear-gradient);
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="28.41" y1="9.65" x2="100.81" y2="88.75" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fc5716"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="34.1" y1="70.52" x2="94.22" y2="136.2" xlink:href="#linear-gradient"/>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <text class="cls-2" transform="translate(153.23 113.86)"><tspan x="0" y="0">Luminary</tspan></text>
+      <g>
+        <rect x="54.17" y="66.57" width="15.56" height="23.48"/>
+        <rect class="cls-3" y="19.33" width="123.9" height="53.93" rx="7.81" ry="7.81"/>
+        <rect class="cls-1" y="87.24" width="123.9" height="27.4" rx="8.14" ry="8.14"/>
+      </g>
+    </g>
+  </g>
+</svg>
