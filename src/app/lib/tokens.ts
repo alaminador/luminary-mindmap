@@ -102,6 +102,10 @@ export const BREAKPOINT_SM = 640
 export const BREAKPOINT_MD = 768
 export const BREAKPOINT_LG = 900
 
+// ── Layout ──────────────────────────────────────────────────────────────────
+export const PANEL_WIDTH = 260   // pages sidebar — canvas shifts by this amount
+export const TOOLBAR_HEIGHT = 52
+
 // ── Overlay ─────────────────────────────────────────────────────────────────
 export const OVERLAY_DURATION = 150
 export const OVERLAY_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'

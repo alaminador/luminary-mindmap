@@ -239,7 +239,8 @@ export const Toolbar: React.FC<Props> = ({
   }
 
   const iconProps = { size: 16, weight: 'regular' } as const
-  const wide = bp.lg // ≥ 900px: show full toolbar
+  const wide = bp.lg    // ≥ 900px: show full toolbar
+  const compact = !bp.md // < 768px: icon-only logo, slim groups, rest in overflow
 
   return (
     <div style={{
@@ -257,7 +258,7 @@ export const Toolbar: React.FC<Props> = ({
     }}>
 
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 136, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: compact ? 0 : 136, flexShrink: 0 }}>
         <svg width="29" height="22" viewBox="0 0 123.9 95.31" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
           <defs>
             <linearGradient id="lum-grad-1" x1="28.41" y1="-9.68" x2="100.81" y2="69.42" gradientUnits="userSpaceOnUse">
@@ -270,13 +271,20 @@ export const Toolbar: React.FC<Props> = ({
           <rect width="123.9" height="53.93" rx="7.81" ry="7.81" fill="url(#lum-grad-1)"/>
           <rect y="67.91" width="123.9" height="27.4" rx="8.14" ry="8.14" fill="url(#lum-grad-2)"/>
         </svg>
-        <span style={{ fontWeight: 700, fontSize: 14, color: t.textPrimary, letterSpacing: '-0.01em' }}>
-          Luminary
-        </span>
+        {!compact && (
+          <span style={{ fontWeight: 700, fontSize: 14, color: t.textPrimary, letterSpacing: '-0.01em' }}>
+            Luminary
+          </span>
+        )}
       </div>
 
-      {/* Center — zoom group (absolutely centered between asymmetric sides) */}
-      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
+      {/* Center — zoom group. Absolutely centered on wide screens; in normal
+          flex flow on compact screens where centering would cause overlap */}
+      <div style={{
+        ...(compact
+          ? { display: 'flex', alignItems: 'center', marginLeft: SPACE_6 }
+          : { position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }),
+      }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 1,
           background: t.groupBg, border: `1px solid ${t.border}`, borderRadius: RADIUS_CARD, padding: `${SPACE_1}px ${SPACE_4}px`,
@@ -293,15 +301,19 @@ export const Toolbar: React.FC<Props> = ({
             <MagnifyingGlassPlus {...iconProps} />
           </TBtn>
 
-          <Div theme={t} />
+          {!compact && (
+            <>
+              <Div theme={t} />
 
-          <TBtn onClick={onReset} label="Reset view  (R)" theme={t}>
-            <ArrowCounterClockwise {...iconProps} />
-          </TBtn>
+              <TBtn onClick={onReset} label="Reset view  (R)" theme={t}>
+                <ArrowCounterClockwise {...iconProps} />
+              </TBtn>
 
-          <TBtn onClick={onFitScreen} label="Fit to screen  (F)" theme={t}>
-            <CornersOut {...iconProps} />
-          </TBtn>
+              <TBtn onClick={onFitScreen} label="Fit to screen  (F)" theme={t}>
+                <CornersOut {...iconProps} />
+              </TBtn>
+            </>
+          )}
         </div>
       </div>
 
@@ -319,13 +331,17 @@ export const Toolbar: React.FC<Props> = ({
           <TBtn onClick={onToggleDark} label={isDark ? 'Switch to light mode' : 'Switch to dark mode'} theme={t}>
             {isDark ? <Sun {...iconProps} /> : <Moon {...iconProps} />}
           </TBtn>
-          <TBtn onClick={onTogglePresent} label="Presentation mode  (P)" theme={t}>
-            <PresentationChart {...iconProps} />
-          </TBtn>
-          {/* Space Out — icon-only in the view group */}
-          <TBtn onClick={onSpaceOut} label="Auto-arrange into circles  (O)" theme={t}>
-            <CirclesFour size={16} weight="regular" />
-          </TBtn>
+          {!compact && (
+            <>
+              <TBtn onClick={onTogglePresent} label="Presentation mode  (P)" theme={t}>
+                <PresentationChart {...iconProps} />
+              </TBtn>
+              {/* Space Out — icon-only in the view group */}
+              <TBtn onClick={onSpaceOut} label="Auto-arrange into circles  (O)" theme={t}>
+                <CirclesFour size={16} weight="regular" />
+              </TBtn>
+            </>
+          )}
         </div>
 
         {/* File group — only on wide screens; otherwise collapsed into overflow */}
@@ -371,6 +387,24 @@ export const Toolbar: React.FC<Props> = ({
               boxShadow: SHADOW_LG,
               padding: SPACE_3, minWidth: 160,
             }}>
+              {/* View actions collapsed into overflow on phone screens */}
+              {compact && (
+                <>
+                  <OBtn onClick={() => { setMoreOpen(false); onReset() }} theme={t}>
+                    <ArrowCounterClockwise size={13} /> Reset view
+                  </OBtn>
+                  <OBtn onClick={() => { setMoreOpen(false); onFitScreen() }} theme={t}>
+                    <CornersOut size={13} /> Fit to screen
+                  </OBtn>
+                  <OBtn onClick={() => { setMoreOpen(false); onTogglePresent() }} theme={t}>
+                    <PresentationChart size={13} /> Presentation mode
+                  </OBtn>
+                  <OBtn onClick={() => { setMoreOpen(false); onSpaceOut() }} theme={t}>
+                    <CirclesFour size={13} /> Space out
+                  </OBtn>
+                  <div style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                </>
+              )}
               {/* File actions collapsed into overflow on narrow screens */}
               {!wide && (
                 <>

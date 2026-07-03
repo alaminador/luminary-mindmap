@@ -9,7 +9,7 @@ import type { Camera } from '../lib/projection'
 import { project } from '../lib/projection'
 import { getTheme, LIGHT_THEMES, DARK_THEMES } from '../lib/themes'
 import { useBreakpoints } from '../lib/use-responsive'
-import { SUCCESS, WARNING } from '../lib/tokens'
+import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT } from '../lib/tokens'
 import { EdgesOverlay } from './edges-overlay'
 import { MindNodeCard } from './mind-node'
 import { NodeToolbar } from './node-toolbar'
@@ -32,8 +32,6 @@ const ACTIVE_PAGE_KEY   = 'mindmap-active-page'
 const THEME_KEY         = 'mindmap-theme'
 const PAPER_TYPE_KEY    = 'mindmap-paper-type'
 const PAPER_OPACITY_KEY = 'mindmap-paper-opacity'
-
-const PANEL_WIDTH = 200
 
 type PaperType    = 'blank' | 'lined' | 'dotted' | 'mini-squared' | 'squared'
 type PaperOpacity = 'subtle' | 'clear' | 'bold'
@@ -264,7 +262,9 @@ export const Scene3D: React.FC = () => {
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
     try { return localStorage.getItem('mindmap-panel-open') !== 'false' } catch { return true }
   })
-  const panelW = panelOpen ? PANEL_WIDTH : 0
+  const bp = useBreakpoints()
+  // On mobile the panel is an overlay drawer — the canvas never shifts
+  const panelW = panelOpen && bp.md ? PANEL_WIDTH : 0
   const panelWRef = useRef(panelW)
   panelWRef.current = panelW
   const [viewport, setViewport] = useState({ width: window.innerWidth - panelW, height: window.innerHeight })
@@ -285,7 +285,6 @@ export const Scene3D: React.FC = () => {
 
   const activeTheme = getTheme(themeId)
   const isDark = activeTheme.mode === 'dark'
-  const bp = useBreakpoints()
 
   // Search
   const [searchActive, setSearchActive] = useState(false)
@@ -1896,7 +1895,7 @@ export const Scene3D: React.FC = () => {
   }, [searchMatchIds, searchActive, searchQuery, state.nodes])
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', position: 'relative', backgroundColor: activeTheme.toolbarBg }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', position: 'relative', backgroundColor: activeTheme.canvasBg }}>
     <PagesPanel
       pages={pagesState.pages}
       activeId={pagesState.activeId}
@@ -1927,7 +1926,7 @@ export const Scene3D: React.FC = () => {
         top: 0,
         width: `calc(100vw - ${panelW}px)`,
         height: '100vh',
-        paddingTop: 52,
+        paddingTop: TOOLBAR_HEIGHT,
         overflow: 'hidden', backgroundColor: activeTheme.canvasBg,
         ...getPaperBg(activeTheme.dotColor, paperType, paperOpacity),
         cursor: 'default', touchAction: 'none', boxSizing: 'border-box',
@@ -2166,28 +2165,6 @@ export const Scene3D: React.FC = () => {
         />
       )}
 
-      <Toolbar
-        zoom={camera.zoom}
-        theme={activeTheme}
-        bp={bp}
-        onReset={() => { targetZoomRef.current = DEFAULT_CAMERA.zoom; setCamera(DEFAULT_CAMERA) }}
-        onFitScreen={fitToScreen}
-        onZoomIn={() => setCamera(c => { const z = Math.min(4, c.zoom * 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
-        onZoomOut={() => setCamera(c => { const z = Math.max(0.2, c.zoom / 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
-        onClear={handleClear}
-        onImport={handleImport}
-        onImportBackup={handleImportBackup}
-        onExportPng={() => exportPngRef.current()}
-        onExportMarkdown={handleExportMarkdown}
-        onExportBackup={handleExportBackup}
-        onToggleDark={() => {
-          if (isDark) setThemeId(LIGHT_THEMES[0].id)
-          else setThemeId(DARK_THEMES[0].id)
-        }}
-        onTogglePresent={enterPresentation}
-        onOpenThemes={() => setShowThemePicker(true)}
-        onSpaceOut={handleSpaceOut}
-      />
       {bp.sm && <Minimap
         nodes={state.nodes}
         camera={camera}
@@ -2336,6 +2313,30 @@ export const Scene3D: React.FC = () => {
         />
       )}
     </div>
+
+    {/* Full-width toolbar — spans over both the pages panel and the canvas */}
+    <Toolbar
+      zoom={camera.zoom}
+      theme={activeTheme}
+      bp={bp}
+      onReset={() => { targetZoomRef.current = DEFAULT_CAMERA.zoom; setCamera(DEFAULT_CAMERA) }}
+      onFitScreen={fitToScreen}
+      onZoomIn={() => setCamera(c => { const z = Math.min(4, c.zoom * 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
+      onZoomOut={() => setCamera(c => { const z = Math.max(0.2, c.zoom / 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
+      onClear={handleClear}
+      onImport={handleImport}
+      onImportBackup={handleImportBackup}
+      onExportPng={() => exportPngRef.current()}
+      onExportMarkdown={handleExportMarkdown}
+      onExportBackup={handleExportBackup}
+      onToggleDark={() => {
+        if (isDark) setThemeId(LIGHT_THEMES[0].id)
+        else setThemeId(DARK_THEMES[0].id)
+      }}
+      onTogglePresent={enterPresentation}
+      onOpenThemes={() => setShowThemePicker(true)}
+      onSpaceOut={handleSpaceOut}
+    />
     </div>
   )
 }
