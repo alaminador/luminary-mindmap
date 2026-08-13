@@ -9,7 +9,7 @@ import type { Camera } from '../lib/projection'
 import { project } from '../lib/projection'
 import { getTheme, LIGHT_THEMES, DARK_THEMES } from '../lib/themes'
 import { useBreakpoints } from '../lib/use-responsive'
-import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT } from '../lib/tokens'
+import { SUCCESS, WARNING, PANEL_WIDTH, TOOLBAR_HEIGHT, MIN_ZOOM, MAX_ZOOM } from '../lib/tokens'
 import { EdgesOverlay } from './edges-overlay'
 import { MindNodeCard } from './mind-node'
 import { NodeToolbar } from './node-toolbar'
@@ -547,7 +547,7 @@ export const Scene3D: React.FC = () => {
     const pad = 120
     const worldW = maxX - minX + pad * 2
     const worldH = maxY - minY + pad * 2
-    const newZoom = Math.max(0.2, Math.min(4, Math.min(vp.width / worldW, vp.height / worldH)))
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min(vp.width / worldW, vp.height / worldH)))
     const cx = (minX + maxX) / 2
     const cy = (minY + maxY) / 2
     targetZoomRef.current = newZoom
@@ -1017,7 +1017,7 @@ export const Scene3D: React.FC = () => {
     if (e.deltaMode === 2) dy *= 400
 
     const factor = Math.exp(-dy * 0.0018)
-    targetZoomRef.current = Math.max(0.2, Math.min(4, targetZoomRef.current * factor))
+    targetZoomRef.current = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoomRef.current * factor))
 
     zoomCursorRef.current = {
       x: e.clientX - viewportRef.current.width  / 2,
@@ -1164,7 +1164,7 @@ export const Scene3D: React.FC = () => {
         const panDX = midX - initMidX
         const panDY = midY - initMidY
         setCamera(c => {
-          const newZoom = Math.max(0.2, Math.min(4, c.zoom * scale))
+          const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, c.zoom * scale))
           const ratio = newZoom / c.zoom
           return {
             ...c,
@@ -2181,8 +2181,8 @@ export const Scene3D: React.FC = () => {
       bp={bp}
       onReset={() => { targetZoomRef.current = DEFAULT_CAMERA.zoom; setCamera(DEFAULT_CAMERA) }}
       onFitScreen={fitToScreen}
-      onZoomIn={() => setCamera(c => { const z = Math.min(4, c.zoom * 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
-      onZoomOut={() => setCamera(c => { const z = Math.max(0.2, c.zoom / 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
+      onZoomIn={() => setCamera(c => { const z = Math.min(MAX_ZOOM, c.zoom * 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
+      onZoomOut={() => setCamera(c => { const z = Math.max(MIN_ZOOM, c.zoom / 1.2); targetZoomRef.current = z; return { ...c, zoom: z } })}
       onClear={handleClear}
       onImport={handleImport}
       onImportBackup={handleImportBackup}

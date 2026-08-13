@@ -106,6 +106,10 @@ export const BREAKPOINT_LG = 900
 export const PANEL_WIDTH = 260   // pages sidebar — canvas shifts by this amount
 export const TOOLBAR_HEIGHT = 52
 
+// ── Canvas zoom ─────────────────────────────────────────────────────────────
+export const MIN_ZOOM = 0.05
+export const MAX_ZOOM = 4
+
 // ── Overlay ─────────────────────────────────────────────────────────────────
 export const OVERLAY_DURATION = 150
 export const OVERLAY_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
